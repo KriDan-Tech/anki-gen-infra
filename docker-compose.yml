@@ -102,7 +102,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-      # ИИ-переменные нужны начиная с этапа 2 (задача TRANSLATE); в каркасе этапа 1 не используются.
+      # ИИ-переменные задачи TRANSLATE (этап 2)
       AI_BASE_URL: ${AI_BASE_URL}
       AI_API_KEY: ${AI_API_KEY}
       AI_TRANSLATE_MODEL: ${AI_TRANSLATE_MODEL}
@@ -130,6 +130,12 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      # retranslate → card-builder /internal/translations/lookup (этап 2)
+      CARD_BUILDER_URL: http://card-builder:8083
+      # готовые .apkg (этап 2)
+      EXPORT_DIR: /data/exports
+    volumes:
+      - deck-exports:/data/exports
     ports:
       - "8084:8084"
     depends_on:
@@ -140,3 +146,4 @@ services:
 
 volumes:
   postgres-data:
+  deck-exports:
