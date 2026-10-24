@@ -1,0 +1,23 @@
+- name: Wait 300 seconds, but only start checking after 60 seconds
+  ansible.builtin.wait_for_connection:
+    timeout: "{{ wait_for_connection_timeout }}"
+
+- name: Wait for cloud-init to finish
+  ansible.builtin.command: cloud-init status --wait
+  register: common_cloud_init
+  changed_when: false
+  failed_when: common_cloud_init.rc not in [0, 2]
+
+- name: Gather facts
+  ansible.builtin.setup:
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ common_timezone }}"

@@ -1,0 +1,6 @@
+wait_for_connection_timeout: 300
+common_packages:
+  - curl
+  - htop
+  - nano
+common_timezone: Europe/Moscow

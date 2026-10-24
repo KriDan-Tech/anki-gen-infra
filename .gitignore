@@ -1,2 +1,20 @@
 # Реальные секреты — не в git. Шаблон: .env.example
 .env
+
+# Terraform
+/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Ansible
+/ansible/inventory.ini
+*.retry
+.vault_pass
+.vault_password
+
+# SSH-ключи
+/ansible/files/keys/*
+!/ansible/files/keys/*.pub

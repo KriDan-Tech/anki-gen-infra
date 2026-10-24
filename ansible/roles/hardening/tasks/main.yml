@@ -1,0 +1,7 @@
+- name: Manage users, SSH keys and sudo
+  ansible.builtin.import_tasks: users.yml
+  tags: hardening_users
+
+- name: Harden SSH server
+  ansible.builtin.import_tasks: ssh.yml
+  tags: hardening_ssh

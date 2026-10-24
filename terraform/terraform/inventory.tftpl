@@ -1,0 +1,7 @@
+[anki-gen-node]
+%{ for name, vm in vms ~}
+%{ if vm.group == "anki-gen-node" ~}
+${name} ansible_host=${vm.ip}
+%{ endif ~}
+%{ endfor ~}
+
