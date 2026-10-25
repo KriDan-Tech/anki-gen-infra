@@ -1,0 +1,17 @@
+# Реальные значения задаются в group_vars и имеют более высокий приоритет.
+
+hardening_keys_dir: "{{ playbook_dir }}/files/keys"
+hardening_users: []
+hardening_absent_users: []
+
+# Настройки SSH-сервера
+hardening_ssh_permit_root_login: "no"
+hardening_ssh_password_authentication: "no"
+hardening_ssh_max_auth_tries: 3
+hardening_ssh_login_grace_time: 30
+hardening_ssh_client_alive_interval: 300
+hardening_ssh_client_alive_count_max: 2
+hardening_ssh_x11_forwarding: "no"
+
+# Кому разрешён вход по SSH. По умолчанию — всем пользователям из hardening_users.
+hardening_ssh_allow_users: "{{ hardening_users | map(attribute='name') | list }}"

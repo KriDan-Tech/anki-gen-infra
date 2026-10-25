@@ -1,5 +1,7 @@
 # Реальные секреты — не в git. Шаблон: .env.example
 .env
+.vault_pass
+*.retry
 
 # Terraform
 /terraform/.terraform/
@@ -8,6 +10,7 @@
 *.tfvars
 !*.tfvars.example
 crash.log
+/terraform/*.lock*
 
 # Ansible
 /ansible/inventory.ini

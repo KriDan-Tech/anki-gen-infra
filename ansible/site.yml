@@ -1,0 +1,27 @@
+- name: Base configuration
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - role: common
+      tags: common
+
+- name: Hardening
+  hosts: all
+  become: true
+  roles:
+    - role: hardening
+      tags: hardening
+
+- name: Docker install
+  hosts: all
+  become: true
+  roles:
+    - geerlingguy.docker
+
+- name: App install and startup
+  hosts: all
+  become: true
+  roles:
+    - role: app
+      tags: app

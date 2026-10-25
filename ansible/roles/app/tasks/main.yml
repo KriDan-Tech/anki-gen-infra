@@ -1,0 +1,7 @@
+- name: Prepare files
+  ansible.builtin.import_tasks: preparation.yml
+  tags: preparation
+
+- name: Start Docker compose
+  ansible.builtin.import_tasks: docker.yml
+  tags: docker

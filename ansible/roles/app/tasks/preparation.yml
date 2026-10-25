@@ -1,0 +1,50 @@
+- name: Создать директороию приложения
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0755"
+
+- name: Клонировать репозитории на management-ноду
+  ansible.builtin.git:
+    repo: "{{ item.url }}"
+    dest: "/tmp/{{ item.name }}"
+    version: "{{ item.version | default('main') }}"
+    accept_newhostkey: true
+    force: true
+  loop: "{{ app_repos }}"
+  loop_control:
+    label: "{{ item.name }}"
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Скопировать репозитории на ноду
+  ansible.posix.synchronize:
+    src: "/tmp/{{ item.name }}/"
+    dest: "{{ app_dir }}/{{ item.name }}/"
+    delete: true
+    rsync_opts:
+      - "--exclude=.git"
+      - "--chown=deploy:deploy"
+  loop: "{{ app_repos }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Скопировать репозитории на ноду
+  ansible.posix.synchronize:
+    src: "{{playbook_dir}}/../{{ app_compose_file }}"
+    dest: "{{ app_dir }}/{{ app_compose_file }}"
+    delete: false
+    rsync_opts:
+      - "--chown=deploy:deploy"
+
+- name: Отправить .env с секретами
+  ansible.builtin.copy:
+    src: "{{ playbook_dir | dirname }}/.env"
+    dest: "{{ app_dir }}/.env"
+    owner: deploy
+    group: deploy
+    mode: "0600"
+  diff: false

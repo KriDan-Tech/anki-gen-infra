@@ -1,0 +1,7 @@
+
+- name: Собрать образы и запустить стек
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    build: always
+    state: present
+    remove_orphans: true

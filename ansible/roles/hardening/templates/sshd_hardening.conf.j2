@@ -1,0 +1,17 @@
+# Managed by Ansible, role hardening. Manual changes will be overwritten.
+
+PermitRootLogin {{ hardening_ssh_permit_root_login }}
+PasswordAuthentication {{ hardening_ssh_password_authentication }}
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+
+MaxAuthTries {{ hardening_ssh_max_auth_tries }}
+LoginGraceTime {{ hardening_ssh_login_grace_time }}
+
+ClientAliveInterval {{ hardening_ssh_client_alive_interval }}
+ClientAliveCountMax {{ hardening_ssh_client_alive_count_max }}
+
+X11Forwarding {{ hardening_ssh_x11_forwarding }}
+
+AllowUsers {{ hardening_ssh_allow_users | join(' ') }}

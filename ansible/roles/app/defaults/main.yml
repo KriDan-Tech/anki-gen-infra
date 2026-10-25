@@ -1,0 +1,23 @@
+
+app_dir: "/srv/myapp"
+app_compose_file: "docker-compose.yml"
+
+app_repos:
+  - name: anki-gen-auth-keycloak
+    url: git@github.com:KriDan-Tech/anki-gen-auth-keycloak.git
+    version: main
+  - name: anki-gen-api-gateway
+    url: git@github.com:KriDan-Tech/anki-gen-api-gateway.git
+    version: main
+  - name: anki-gen-source-service
+    url: git@github.com:KriDan-Tech/anki-gen-source-service.git
+    version: main
+  - name: anki-gen-deck-service
+    url: git@github.com:KriDan-Tech/anki-gen-deck-service.git
+    version: main
+  - name: anki-gen-card-builder
+    url: git@github.com:KriDan-Tech/anki-gen-card-builder.git
+    version: main
+  - name: anki-gen-vocab-extractor
+    url: git@github.com:KriDan-Tech/anki-gen-vocab-extractor.git
+    version: main
