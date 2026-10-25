@@ -64,7 +64,7 @@ services:
   # Образ закреплён тегом. Хост в адресе выдачи токенов (iss) задаёт KC_HOSTNAME — его же ждёт gateway.
   keycloak:
     build:
-      context: ../auth-keycloak
+      context: ./anki-gen-auth-keycloak
     container_name: anki-keycloak
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
@@ -89,7 +89,7 @@ services:
   # удаляются по build.completed.v1 (план §3, этап 3).
   source-service:
     build:
-      context: ../source-service
+      context: ./anki-gen-source-service
     container_name: anki-source-service
     environment:
       POSTGRES_HOST: postgres
@@ -112,7 +112,7 @@ services:
 
   vocab-extractor:
     build:
-      context: ../vocab-extractor
+      context: ./anki-gen-vocab-extractor
     container_name: anki-vocab-extractor
     environment:
       SERVER_PORT: 8082
@@ -143,7 +143,7 @@ services:
 
   card-builder:
     build:
-      context: ../card-builder
+      context: ./anki-gen-card-builder
     container_name: anki-card-builder
     environment:
       SERVER_PORT: 8083
@@ -170,7 +170,7 @@ services:
 
   deck-service:
     build:
-      context: ../deck-service
+      context: ./anki-gen-deck-service
     container_name: anki-deck-service
     environment:
       SERVER_PORT: 8084
@@ -199,7 +199,7 @@ services:
   # Адреса сервисов — внутри сети compose; снаружи доступен только gateway.
   api-gateway:
     build:
-      context: ../api-gateway
+      context: ./anki-gen-api-gateway
     container_name: anki-api-gateway
     environment:
       SERVER_PORT: 8080
