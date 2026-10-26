@@ -162,6 +162,8 @@ services:
       AI_API_KEY: ${AI_API_KEY}
       AI_DETECT_MODEL: ${AI_DETECT_MODEL}
       AI_REASONING_EFFORT: ${AI_REASONING_EFFORT}
+      AI_RESPONSE_FORMAT: ${AI_RESPONSE_FORMAT:-json_schema}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-}
       AI_MAX_PAGES_PER_EXTRACTION: ${AI_MAX_PAGES_PER_EXTRACTION:-200}
       # блоки книги и source.parsed.v1 (этап 3)
       SOURCE_SERVICE_URL: http://source-service:8081
@@ -197,6 +199,8 @@ services:
       AI_API_KEY: ${AI_API_KEY}
       AI_TRANSLATE_MODEL: ${AI_TRANSLATE_MODEL}
       AI_REASONING_EFFORT: ${AI_REASONING_EFFORT}
+      AI_RESPONSE_FORMAT: ${AI_RESPONSE_FORMAT:-json_schema}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-}
       AI_MAX_WORDS_PER_BUILD: ${AI_MAX_WORDS_PER_BUILD:-2000}
     depends_on:
       postgres:
