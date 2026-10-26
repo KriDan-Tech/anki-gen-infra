@@ -38,7 +38,12 @@
 - name: Сформировать CSR с SAN для TLS
   community.crypto.openssl_csr_pipe:
     privatekey_path: "{{ app_dir }}/{{ app_cert_dir }}/tls.key"
+    # пустой subject/issuer нарушает RFC 5280 (issuer MUST be non-empty): Chrome/Edge дают
+    # непропускаемый ERR_CERT_INVALID даже для доверенного сертификата
+    common_name: "{{ app_public_host }}"
     subject_alt_name: "{{ app_cert_san }}"
+    key_usage:
+      - digitalSignature
     extended_key_usage:
       - serverAuth
     basic_constraints:
