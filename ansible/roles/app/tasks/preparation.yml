@@ -40,7 +40,7 @@
     rsync_opts:
       - "--chown=deploy:deploy"
 
-- name: Скопировать docker-compose.yml на ноду
+- name: Скопировать init-скрипты Postgres на ноду
   ansible.posix.synchronize:
     src: "{{playbook_dir}}/../{{app_db_migrations_dir}}/"
     dest: "{{ app_dir }}/{{app_db_migrations_dir}}/"
