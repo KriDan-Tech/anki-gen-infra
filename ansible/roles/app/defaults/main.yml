@@ -16,6 +16,9 @@ app_repos:
   - name: anki-gen-deck-service
     url: git@github.com:KriDan-Tech/anki-gen-deck-service.git
     version: main
+  - name: anki-web-frontend
+    url: git@github.com:KriDan-Tech/anki-web-frontend.git
+    version: main
   - name: anki-gen-card-builder
     url: git@github.com:KriDan-Tech/anki-gen-card-builder.git
     version: main

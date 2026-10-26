@@ -2,8 +2,10 @@ name: dev-anki-gen
 
 # Этапы 1–6. Поднимает инфраструктуру (postgres, rabbitmq, mailpit), keycloak, api-gateway,
 # source-service (Python) и Java-сервисы vocab-extractor / card-builder / deck-service.
-# Наружу публикуются только gateway (8080), Keycloak (8180) и Mailpit (8025); порты сервисов закрыты
-# (этап 6, план §1.3). Каждый сервис собирается из соседнего репозитория (полирепо): build.context: ../<сервис>.
+# Наружу публикуются только веб-интерфейс (3000), gateway (8080), Keycloak (8180) и Mailpit (8025); порты сервисов закрыты
+# (этап 6, план §1.3). Каждый сервис собирается из своего репозитория (полирепо): build.context: ./<репозиторий>.
+# Каталоги ./<репозиторий> раскладывает Ansible (roles/app, список app_repos в roles/app/defaults/main.yml):
+# новый сервис добавлять в оба места с одинаковым именем.
 
 services:
   postgres:
@@ -84,6 +86,8 @@ services:
       KC_HOSTNAME: http://${PUBLIC_HOST}:8180
       # подставляется в realm-export.json (redirect URI и web origin клиента swagger)
       GATEWAY_PUBLIC_URL: http://${PUBLIC_HOST}:8080
+      # подставляется в realm-export.json (redirect URI, web origin и post logout клиента web)
+      WEB_PUBLIC_URL: http://${PUBLIC_HOST}:3000
       # подставляются в realm-export.json (провайдер Google); пустые — вход через Google не работает
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
@@ -241,6 +245,25 @@ services:
       card-builder:
         condition: service_started
       deck-service:
+        condition: service_started
+
+  # Веб-интерфейс (Angular): статика и nginx-прокси /api → gateway с одного origin (:3000).
+  # Конфиг Keycloak отдаётся браузеру из /config.json (nginx берёт значения из окружения ниже).
+  web-frontend:
+    build:
+      context: ./anki-web-frontend
+    container_name: anki-web-frontend
+    restart: unless-stopped
+    environment:
+      API_GATEWAY_URL: http://api-gateway:8080
+      KEYCLOAK_URL: http://${PUBLIC_HOST}:8180
+      KEYCLOAK_REALM: anki-gen
+      KEYCLOAK_CLIENT_ID: web
+      MAX_UPLOAD_SIZE: 100m
+    ports:
+      - "3000:80"
+    depends_on:
+      api-gateway:
         condition: service_started
 
 volumes:
