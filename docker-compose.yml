@@ -2,8 +2,9 @@ name: dev-anki-gen
 
 # Этапы 1–6. Поднимает инфраструктуру (postgres, rabbitmq, mailpit), keycloak, api-gateway,
 # source-service (Python) и Java-сервисы vocab-extractor / card-builder / deck-service.
-# Наружу публикуются только веб-интерфейс (3000), gateway (8080), Keycloak (8180) и Mailpit (8025); порты сервисов закрыты
-# (этап 6, план §1.3). Каждый сервис собирается из своего репозитория (полирепо): build.context: ./<репозиторий>.
+# Основной вход — сервис proxy (80 → 301 на 443, 443): все адреса стенда на одном origin https://PUBLIC_HOST/.
+# Прямые порты сервисов (3000, 8080, 8180, 8025, 1025, 5432, 5672, 15672) пока оставлены для стенда и закрываются перед продом (план, §6).
+# Каждый сервис собирается из своего репозитория (полирепо): build.context: ./<репозиторий>.
 # Каталоги ./<репозиторий> раскладывает Ansible (roles/app, список app_repos в roles/app/defaults/main.yml):
 # новый сервис добавлять в оба места с одинаковым именем.
 
@@ -57,20 +58,22 @@ services:
       timeout: 5s
       retries: 10
 
-  # Заглушка SMTP: ловит письма Keycloak (этап 6), наружу ничего не уходит. UI на 8025.
+  # Заглушка SMTP: ловит письма Keycloak (этап 6), наружу ничего не уходит. UI — через proxy: https://PUBLIC_HOST/mailpit/
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.32.0
     container_name: anki-mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025"      # web UI
+      - "8025:8025"      # web UI (прямой доступ, до прода)
       - "1025:1025"      # SMTP
     environment:
       MP_MAX_MESSAGES: 500
+      # путь UI за proxy; должен совпадать с location /mailpit/ в proxy/templates
+      MP_WEBROOT: /mailpit/
 
   # Keycloak (этап 6): realm anki-gen импортируется из auth-keycloak/realm-export.json при старте.
-  # Образ закреплён тегом. Хост в адресе выдачи токенов (iss) задаёт KC_HOSTNAME — его же ждёт gateway.
-  # PUBLIC_HOST (infra/.env) — адрес, по которому браузер открывает gateway и Keycloak (localhost или IP сервера).
+  # Образ закреплён тегом. Адрес выдачи токенов (iss) задаёт KC_HOSTNAME — полный URL с /auth, его же ждёт gateway.
+  # PUBLIC_HOST (infra/.env) — единственный адрес стенда (IP сервера или домен); браузер ходит на https://PUBLIC_HOST/auth/.
   keycloak:
     build:
       context: ./anki-gen-auth-keycloak
@@ -83,16 +86,23 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
       KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      KC_HOSTNAME: http://${PUBLIC_HOST}:8180
+      # полный URL с контекстным путём: схема, хост и /auth (документация Keycloak, Configuring the hostname)
+      KC_HOSTNAME: https://${PUBLIC_HOST}/auth
+      # контекстный путь Keycloak совпадает с путём в proxy (план §1.2)
+      KC_HTTP_RELATIVE_PATH: /auth
+      # за reverse proxy: заголовки X-Forwarded-* от proxy
+      KC_PROXY_HEADERS: xforwarded
+      # явно, на случай перехода на start (план §1.2)
+      KC_HTTP_ENABLED: "true"
       # подставляется в realm-export.json (redirect URI и web origin клиента swagger)
-      GATEWAY_PUBLIC_URL: http://${PUBLIC_HOST}:8080
+      GATEWAY_PUBLIC_URL: https://${PUBLIC_HOST}
       # подставляется в realm-export.json (redirect URI, web origin и post logout клиента web)
-      WEB_PUBLIC_URL: http://${PUBLIC_HOST}:3000
+      WEB_PUBLIC_URL: https://${PUBLIC_HOST}
       # подставляются в realm-export.json (провайдер Google); пустые — вход через Google не работает
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     ports:
-      - "8180:8080"      # Keycloak (браузер, OIDC)
+      - "8180:8080"      # прямой доступ к Keycloak (стенд; до прода). Основной вход — через proxy, /auth/
     depends_on:
       postgres:
         condition: service_healthy
@@ -226,13 +236,15 @@ services:
       VOCAB_EXTRACTOR_URL: http://vocab-extractor:8082
       CARD_BUILDER_URL: http://card-builder:8083
       DECK_SERVICE_URL: http://deck-service:8084
-      # JWKS — по внутреннему адресу; iss — внешний hostname Keycloak (KC_HOSTNAME выше)
-      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/anki-gen/protocol/openid-connect/certs
-      KEYCLOAK_ISSUER: http://${PUBLIC_HOST}:8180/realms/anki-gen
+      # JWKS — по внутреннему адресу (с контекстным путём /auth); iss — внешний адрес Keycloak через proxy (KC_HOSTNAME выше)
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/auth/realms/anki-gen/protocol/openid-connect/certs
+      KEYCLOAK_ISSUER: https://${PUBLIC_HOST}/auth/realms/anki-gen
       # адреса, которые открывает браузер (Swagger UI → Authorize)
-      KEYCLOAK_AUTHORIZATION_URI: http://${PUBLIC_HOST}:8180/realms/anki-gen/protocol/openid-connect/auth
-      KEYCLOAK_TOKEN_URI: http://${PUBLIC_HOST}:8180/realms/anki-gen/protocol/openid-connect/token
+      KEYCLOAK_AUTHORIZATION_URI: https://${PUBLIC_HOST}/auth/realms/anki-gen/protocol/openid-connect/auth
+      KEYCLOAK_TOKEN_URI: https://${PUBLIC_HOST}/auth/realms/anki-gen/protocol/openid-connect/token
       SWAGGER_CLIENT_ID: swagger
+      # за proxy: Spring берёт схему и хост из X-Forwarded-*, Swagger строит https-адреса (код gateway не меняется)
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
     ports:
       - "8080:8080"
     depends_on:
@@ -247,8 +259,9 @@ services:
       deck-service:
         condition: service_started
 
-  # Веб-интерфейс (Angular): статика и nginx-прокси /api → gateway с одного origin (:3000).
-  # Конфиг Keycloak отдаётся браузеру из /config.json (nginx берёт значения из окружения ниже).
+  # Веб-интерфейс (Angular): статика и nginx самого сервиса. Конфиг Keycloak отдаётся браузеру из /config.json
+  # (nginx берёт значения из окружения ниже). Основной вход — через proxy; прямой порт 3000 оставлен до прода;
+  # встроенный /api у этого сервиса не используется (proxy перехватывает /api/).
   web-frontend:
     build:
       context: ./anki-web-frontend
@@ -256,7 +269,7 @@ services:
     restart: unless-stopped
     environment:
       API_GATEWAY_URL: http://api-gateway:8080
-      KEYCLOAK_URL: http://${PUBLIC_HOST}:8180
+      KEYCLOAK_URL: https://${PUBLIC_HOST}/auth
       KEYCLOAK_REALM: anki-gen
       KEYCLOAK_CLIENT_ID: web
       MAX_UPLOAD_SIZE: 100m
@@ -264,6 +277,38 @@ services:
       - "3000:80"
     depends_on:
       api-gateway:
+        condition: service_started
+
+  # Единая точка входа стенда: TLS на 443, 80 → 301 на https. Конфиг — proxy/templates/default.conf.template,
+  # подстановка переменных делает штатный envsubst образа nginx. Сертификат — ./certs (выпускает Ansible).
+  # Образ закреплён тегом, как у web-frontend.
+  proxy:
+    image: nginx:1.30.6-alpine
+    container_name: anki-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # upstream внутри сети compose (http, TLS только на proxy)
+      WEB_FRONTEND_URL: http://web-frontend:80
+      API_GATEWAY_URL: http://api-gateway:8080
+      KEYCLOAK_UPSTREAM: http://keycloak:8080
+      MAILPIT_UPSTREAM: http://mailpit:8025
+      MAX_UPLOAD_SIZE: 100m
+      # подсеть админки (infra/.env); без неё compose падает с сообщением
+      ADMIN_ALLOWED_CIDR: ${ADMIN_ALLOWED_CIDR:?задайте ADMIN_ALLOWED_CIDR в infra/.env, см. .env.example}
+    volumes:
+      - ./proxy/templates:/etc/nginx/templates:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      web-frontend:
+        condition: service_started
+      api-gateway:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      mailpit:
         condition: service_started
 
 volumes:

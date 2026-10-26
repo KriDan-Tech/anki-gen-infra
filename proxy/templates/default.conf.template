@@ -1,0 +1,160 @@
+# Единая точка входа стенда (план dev-anki-gen-https, §1). Образ nginx при старте прогоняет этот файл через envsubst
+# и кладёт результат в /etc/nginx/conf.d/default.conf. Подставляются только переменные, заданные в env сервиса proxy
+# (infra/docker-compose.yml); $host, $remote_addr и т.п. остаются как есть.
+# Все проксирующие location объявлены с ^~, regex-location не используются.
+
+# HTTP → HTTPS
+server {
+    listen 80;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+
+    # Одиночный самоподписанный сертификат, выпускает Ansible (roles/app/tasks/certs.yml)
+    ssl_certificate     /etc/nginx/certs/tls.crt;
+    ssl_certificate_key /etc/nginx/certs/tls.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # Веб-интерфейс: статика, /config.json, SPA-маршруты. Заголовки безопасности отдаёт web-frontend, свои add_header не задаются
+    location / {
+        proxy_pass ${WEB_FRONTEND_URL};
+        proxy_redirect http://$host/ https://$host/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # API gateway. Загрузка книг: лимит размера и без буферизации запроса (иначе 413 для PDF > 1m)
+    location ^~ /api/ {
+        proxy_pass ${API_GATEWAY_URL};
+        client_max_body_size ${MAX_UPLOAD_SIZE};
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Keycloak на контекстном пути /auth (KC_HTTP_RELATIVE_PATH=/auth). proxy_pass без URI сохраняет путь
+    location = /auth {
+        return 301 /auth/;
+    }
+
+    location ^~ /auth/ {
+        proxy_pass ${KEYCLOAK_UPSTREAM};
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Админка Keycloak и административный realm: только из ADMIN_ALLOWED_CIDR (Keycloak: expose only internally)
+    location ^~ /auth/admin/ {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${KEYCLOAK_UPSTREAM};
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ^~ /auth/realms/master/ {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${KEYCLOAK_UPSTREAM};
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Swagger UI и OpenAPI gateway: только из ADMIN_ALLOWED_CIDR. Вызовы /api/ от Swagger этим не ограничены (защищены JWT)
+    location = /swagger-ui.html {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${API_GATEWAY_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ^~ /swagger-ui/ {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${API_GATEWAY_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ^~ /v3/api-docs/ {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${API_GATEWAY_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ^~ /api-docs/ {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${API_GATEWAY_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Mailpit UI (MP_WEBROOT=/mailpit/): только из ADMIN_ALLOWED_CIDR. Host — исходный, иначе Mailpit (>= 1.29) отвергает Origin. Websocket для живого обновления
+    location ^~ /mailpit/ {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${MAILPIT_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}

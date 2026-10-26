@@ -2,6 +2,9 @@
 app_dir: "/srv/myapp"
 app_compose_file: "docker-compose.yml"
 app_db_migrations_dir: "postgres"
+app_proxy_dir: "proxy"
+app_cert_dir: "certs"
+app_cert_days: 825
 
 app_repos:
   - name: anki-gen-auth-keycloak

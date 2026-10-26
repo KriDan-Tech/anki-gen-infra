@@ -6,3 +6,12 @@
     state: present
     wait: true
     remove_orphans: true
+
+# bind-mount конфига и сертификата compose не отслеживает: без рестарта proxy новые файлы не применятся
+- name: Перезапустить proxy при смене конфига или сертификата
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    services:
+      - proxy
+    state: restarted
+  when: app_proxy_conf is changed or app_cert is changed

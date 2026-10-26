@@ -40,6 +40,15 @@
     rsync_opts:
       - "--chown=deploy:deploy"
 
+- name: Скопировать конфиг proxy на ноду
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../{{ app_proxy_dir }}/"
+    dest: "{{ app_dir }}/{{ app_proxy_dir }}/"
+    delete: false
+    rsync_opts:
+      - "--chown=deploy:deploy"
+  register: app_proxy_conf
+
 - name: Скопировать init-скрипты Postgres на ноду
   ansible.posix.synchronize:
     src: "{{playbook_dir}}/../{{app_db_migrations_dir}}/"

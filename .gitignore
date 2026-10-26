@@ -21,3 +21,6 @@ crash.log
 # SSH-ключи
 /ansible/files/keys/*
 !/ansible/files/keys/*.pub
+
+# TLS-сертификат стенда: ключ и сертификат выпускает Ansible на ноде, в git не попадают
+/certs/

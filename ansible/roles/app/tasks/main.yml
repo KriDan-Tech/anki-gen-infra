@@ -2,6 +2,10 @@
   ansible.builtin.import_tasks: preparation.yml
   tags: preparation
 
+- name: Generate TLS certificate for proxy
+  ansible.builtin.import_tasks: certs.yml
+  tags: certs
+
 - name: Start Docker compose
   ansible.builtin.import_tasks: docker.yml
   tags: docker
