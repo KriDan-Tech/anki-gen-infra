@@ -9,6 +9,7 @@ services:
   postgres:
     image: postgres:17
     container_name: anki-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -30,7 +31,10 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # -h 127.0.0.1: проверка по TCP. При первой инициализации entrypoint поднимает временный сервер
+      # только на Unix-сокете (listen_addresses=''), и pg_isready без -h отмечал бы healthy раньше,
+      # чем сервисы смогут подключиться к postgres:5432.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -38,6 +42,7 @@ services:
   rabbitmq:
     image: rabbitmq:4-management
     container_name: anki-rabbitmq
+    restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
@@ -54,6 +59,7 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     container_name: anki-mailpit
+    restart: unless-stopped
     ports:
       - "8025:8025"      # web UI
       - "1025:1025"      # SMTP
@@ -67,6 +73,7 @@ services:
     build:
       context: ./anki-gen-auth-keycloak
     container_name: anki-keycloak
+    restart: unless-stopped
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
@@ -94,6 +101,7 @@ services:
     build:
       context: ./anki-gen-source-service
     container_name: anki-source-service
+    restart: unless-stopped
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
@@ -117,6 +125,7 @@ services:
     build:
       context: ./anki-gen-vocab-extractor
     container_name: anki-vocab-extractor
+    restart: unless-stopped
     environment:
       SERVER_PORT: 8082
       POSTGRES_HOST: postgres
@@ -148,6 +157,7 @@ services:
     build:
       context: ./anki-gen-card-builder
     container_name: anki-card-builder
+    restart: unless-stopped
     environment:
       SERVER_PORT: 8083
       POSTGRES_HOST: postgres
@@ -175,6 +185,7 @@ services:
     build:
       context: ./anki-gen-deck-service
     container_name: anki-deck-service
+    restart: unless-stopped
     environment:
       SERVER_PORT: 8084
       POSTGRES_HOST: postgres
@@ -204,6 +215,7 @@ services:
     build:
       context: ./anki-gen-api-gateway
     container_name: anki-api-gateway
+    restart: unless-stopped
     environment:
       SERVER_PORT: 8080
       SOURCE_SERVICE_URL: http://source-service:8081
