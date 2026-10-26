@@ -17,6 +17,11 @@ resource "proxmox_virtual_environment_vm" "vm" {
 
   cpu {
     cores = each.value.cores
+<<<<<<< HEAD
+=======
+    # x86-64-v3 = v2 + AVX/AVX2/FMA: без AVX колесо paddlepaddle (OCR в source-service) падает
+    # с SIGILL «invalid opcode» и роняет сервис. Требует AVX2 у CPU хоста Proxmox (Intel Haswell+/любой Ryzen).
+>>>>>>> e3270cb1ad38164a63499c9b4ffdf9d11bb76f00
     type  = "x86-64-v3"
   }
 

@@ -106,6 +106,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        # Postgres пересоздан (например, после down -v / смены volume) → перезапустить сервис,
+        # иначе миграции (Flyway/alembic/Keycloak) не прогонятся на пустой базе
+        restart: true
       mailpit:
         condition: service_started
 
@@ -132,6 +135,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        # Postgres пересоздан (например, после down -v / смены volume) → перезапустить сервис,
+        # иначе миграции (Flyway/alembic/Keycloak) не прогонятся на пустой базе
+        restart: true
       rabbitmq:
         condition: service_healthy
 
@@ -162,6 +168,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        # Postgres пересоздан (например, после down -v / смены volume) → перезапустить сервис,
+        # иначе миграции (Flyway/alembic/Keycloak) не прогонятся на пустой базе
+        restart: true
       rabbitmq:
         condition: service_healthy
       source-service:
@@ -192,6 +201,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        # Postgres пересоздан (например, после down -v / смены volume) → перезапустить сервис,
+        # иначе миграции (Flyway/alembic/Keycloak) не прогонятся на пустой базе
+        restart: true
       rabbitmq:
         condition: service_healthy
 
@@ -220,6 +232,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        # Postgres пересоздан (например, после down -v / смены volume) → перезапустить сервис,
+        # иначе миграции (Flyway/alembic/Keycloak) не прогонятся на пустой базе
+        restart: true
       rabbitmq:
         condition: service_healthy
 
