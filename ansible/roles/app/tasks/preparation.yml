@@ -32,10 +32,18 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Скопировать репозитории на ноду
+- name: Скопировать docker-compose.yml на ноду
   ansible.posix.synchronize:
     src: "{{playbook_dir}}/../{{ app_compose_file }}"
     dest: "{{ app_dir }}/{{ app_compose_file }}"
+    delete: false
+    rsync_opts:
+      - "--chown=deploy:deploy"
+
+- name: Скопировать docker-compose.yml на ноду
+  ansible.posix.synchronize:
+    src: "{{playbook_dir}}/../{{app_db_migrations_dir}}/"
+    dest: "{{ app_dir }}/{{app_db_migrations_dir}}/"
     delete: false
     rsync_opts:
       - "--chown=deploy:deploy"
