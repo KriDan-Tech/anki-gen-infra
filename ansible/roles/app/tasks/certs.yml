@@ -1,3 +1,9 @@
+# модулям community.crypto нужна Python-библиотека cryptography на ноде
+- name: Установить python3-cryptography
+  ansible.builtin.apt:
+    name: python3-cryptography
+    state: present
+
 - name: Прочитать PUBLIC_HOST из infra/.env
   ansible.builtin.set_fact:
     app_public_host: "{{ lookup('ansible.builtin.ini', 'PUBLIC_HOST', file=(playbook_dir | dirname) ~ '/.env', type='properties') }}"
