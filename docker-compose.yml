@@ -62,6 +62,7 @@ services:
 
   # Keycloak (этап 6): realm anki-gen импортируется из auth-keycloak/realm-export.json при старте.
   # Образ закреплён тегом. Хост в адресе выдачи токенов (iss) задаёт KC_HOSTNAME — его же ждёт gateway.
+  # PUBLIC_HOST (infra/.env) — адрес, по которому браузер открывает gateway и Keycloak (localhost или IP сервера).
   keycloak:
     build:
       context: ./anki-gen-auth-keycloak
@@ -73,7 +74,9 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
       KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME: http://${PUBLIC_HOST}:8180
+      # подставляется в realm-export.json (redirect URI и web origin клиента swagger)
+      GATEWAY_PUBLIC_URL: http://${PUBLIC_HOST}:8080
       # подставляются в realm-export.json (провайдер Google); пустые — вход через Google не работает
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
@@ -209,10 +212,10 @@ services:
       DECK_SERVICE_URL: http://deck-service:8084
       # JWKS — по внутреннему адресу; iss — внешний hostname Keycloak (KC_HOSTNAME выше)
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/anki-gen/protocol/openid-connect/certs
-      KEYCLOAK_ISSUER: http://localhost:8180/realms/anki-gen
+      KEYCLOAK_ISSUER: http://${PUBLIC_HOST}:8180/realms/anki-gen
       # адреса, которые открывает браузер (Swagger UI → Authorize)
-      KEYCLOAK_AUTHORIZATION_URI: http://localhost:8180/realms/anki-gen/protocol/openid-connect/auth
-      KEYCLOAK_TOKEN_URI: http://localhost:8180/realms/anki-gen/protocol/openid-connect/token
+      KEYCLOAK_AUTHORIZATION_URI: http://${PUBLIC_HOST}:8180/realms/anki-gen/protocol/openid-connect/auth
+      KEYCLOAK_TOKEN_URI: http://${PUBLIC_HOST}:8180/realms/anki-gen/protocol/openid-connect/token
       SWAGGER_CLIENT_ID: swagger
     ports:
       - "8080:8080"
