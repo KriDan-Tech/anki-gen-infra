@@ -3,4 +3,6 @@ common_packages:
   - curl
   - htop
   - nano
+  - wireguard
+  - iptables
 common_timezone: Europe/Moscow

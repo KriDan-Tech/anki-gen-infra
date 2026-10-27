@@ -5,3 +5,7 @@
 - name: Harden SSH server
   ansible.builtin.import_tasks: ssh.yml
   tags: hardening_ssh
+
+- name: Harden wireguard
+  ansible.builtin.import_tasks: wireguard.yml
+  tags: hardening_wireguard

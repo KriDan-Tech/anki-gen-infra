@@ -1,0 +1,27 @@
+[Interface]
+Address = {{ wg_address }}
+PrivateKey = {{ wg_private_key | trim }}
+Table = off
+
+PostUp = sysctl -w net.ipv4.conf.all.src_valid_mark=1
+PostUp = sysctl -w net.ipv4.conf.all.rp_filter=2
+PostUp = sysctl -w net.ipv4.conf.%i.rp_filter=2
+PostUp = ip rule add fwmark 0x1 table 100 priority 100
+PostUp = ip route add default dev %i table 100
+PostUp = iptables -t mangle -A PREROUTING -i %i -m conntrack --ctstate NEW -j CONNMARK --set-mark 0x1
+PostUp = iptables -t mangle -A OUTPUT -m connmark --mark 0x1 -j MARK --set-mark 0x1
+PostUp = iptables -t mangle -A PREROUTING ! -i %i -m connmark --mark 0x1 -j MARK --set-mark 0x1
+PostUp = iptables -t mangle -A POSTROUTING -o %i -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+
+PostDown = ip rule del fwmark 0x1 table 100 priority 100
+PostDown = ip route flush table 100
+PostDown = iptables -t mangle -D PREROUTING -i %i -m conntrack --ctstate NEW -j CONNMARK --set-mark 0x1
+PostDown = iptables -t mangle -D OUTPUT -m connmark --mark 0x1 -j MARK --set-mark 0x1
+PostDown = iptables -t mangle -D PREROUTING ! -i %i -m connmark --mark 0x1 -j MARK --set-mark 0x1
+PostDown = iptables -t mangle -D POSTROUTING -o %i -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+
+[Peer]
+PublicKey = {{ wg_s1_public_key }}
+Endpoint = {{ wg_s1_endpoint }}
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 20
