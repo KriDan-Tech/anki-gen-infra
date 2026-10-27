@@ -202,6 +202,7 @@ services:
       AI_RESPONSE_FORMAT: ${AI_RESPONSE_FORMAT:-json_schema}
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-}
       AI_MAX_WORDS_PER_BUILD: ${AI_MAX_WORDS_PER_BUILD:-2000}
+      AI_TRANSLATE_CONTEXT: ${AI_TRANSLATE_CONTEXT:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -229,6 +230,8 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
       # retranslate → card-builder /internal/translations/lookup (этап 2)
       CARD_BUILDER_URL: http://card-builder:8083
+      # перед удалением колоды — проверка поиска слов в vocab-extractor (план Q2, вариант «в»)
+      VOCAB_EXTRACTOR_URL: http://vocab-extractor:8082
       # готовые .apkg (этап 2)
       EXPORT_DIR: /data/exports
     volumes:
