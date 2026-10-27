@@ -317,6 +317,8 @@ services:
       MAX_UPLOAD_SIZE: 100m
       # подсеть админки (infra/.env); без неё compose падает с сообщением
       ADMIN_ALLOWED_CIDR: ${ADMIN_ALLOWED_CIDR:?задайте ADMIN_ALLOWED_CIDR в infra/.env, см. .env.example}
+      # белый список всего стенда (infra/.env); all — без ограничения
+      ALLOWED_CIDR: ${ALLOWED_CIDR:?задайте ALLOWED_CIDR в infra/.env, см. .env.example}
     volumes:
       - ./proxy/templates:/etc/nginx/templates:ro
       - ./certs:/etc/nginx/certs:ro

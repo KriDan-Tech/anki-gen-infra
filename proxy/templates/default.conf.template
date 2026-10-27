@@ -18,6 +18,12 @@ server {
     ssl_certificate_key /etc/nginx/certs/tls.key;
     ssl_protocols       TLSv1.2 TLSv1.3;
 
+    # Белый список всего стенда: ALLOWED_CIDR из infra/.env (адрес или CIDR; all — список выключен).
+    # Наследуется во все location без своих allow/deny; админские location ниже ограничены только ADMIN_ALLOWED_CIDR.
+    # Порт 80 не ограничен: return 301 срабатывает раньше проверки доступа, редирект ничего не отдаёт.
+    allow ${ALLOWED_CIDR};
+    deny  all;
+
     # Веб-интерфейс: статика, /config.json, SPA-маршруты. Заголовки безопасности отдаёт web-frontend, свои add_header не задаются
     location / {
         proxy_pass ${WEB_FRONTEND_URL};
