@@ -1,0 +1,12 @@
+[Unit]
+Description=dev-anki-gen: продление сертификата Let's Encrypt
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# от root: контейнер lego пишет файлы в acme-data и certs как root
+User=root
+WorkingDirectory={{ app_dir }}
+ExecStart=/bin/bash {{ app_dir }}/{{ app_acme_dir }}/renew.sh {{ app_dir }}

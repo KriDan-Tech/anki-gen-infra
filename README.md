@@ -17,6 +17,7 @@
 | vocab-extractor | build `../vocab-extractor` | — (внутри сети, 8082) | Извлечение слов |
 | card-builder | build `../card-builder` | — (внутри сети, 8083) | Сборка карточек |
 | deck-service | build `../deck-service` | — (внутри сети, 8084) | Колоды, экспорт `.apkg` |
+| acme | `goacme/lego:v5.5.2` | — | разовый запуск: выпуск/продление LE |
 
 **Наружу публикуются только gateway (8080), Keycloak (8180) и Mailpit (8025).** Порты сервисов
 (8081–8084) с этапа 6 в compose не публикуются: всё идёт через gateway. Postgres и RabbitMQ пока
@@ -39,6 +40,22 @@ docker compose up -d --build
 - Realm `anki-gen`: импорт из `auth-keycloak/realm-export.json` идёт только при первом создании realm;
   подробнее — `auth-keycloak/README.md`. Google: заполнить `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
   в `.env` (пока пустые — вход через Google не работает).
+
+## HTTPS и сертификат (TLS_MODE)
+
+Вход — `https://PUBLIC_HOST/` через proxy (443; 80 → 301). Nginx читает активную пару `certs/tls.crt` + `certs/tls.key`.
+
+- **`selfsigned`** (по умолчанию, `TLS_MODE=selfsigned`): самоподписанный, для IP и localhost. Ansible выпускает его в `certs/selfsigned/` и копирует в активную пару. `tls.crt` забирается в `infra/certs/<host>.crt` — его можно добавить в доверенные на устройствах.
+- **`letsencrypt`** (`TLS_MODE=letsencrypt`): сертификат Let's Encrypt через DNS-01 (TXT-запись в зоне Selectel), входящий 80 не нужен. Только для домена, не для IP и localhost. Режим означает согласие с Subscriber Agreement Let's Encrypt.
+  1. Создать в Selectel сервисного пользователя с ролью на проект, где лежит DNS-зона `PUBLIC_HOST`.
+  2. Заполнить в `infra/.env` `SELECTELV2_USERNAME`, `SELECTELV2_PASSWORD`, `SELECTELV2_ACCOUNT_ID`, `SELECTELV2_PROJECT_ID`.
+  3. Указать `TLS_MODE=letsencrypt` и `ACME_SERVER=letsencrypt-staging`, затем деплой через Ansible (`ansible/site.yml`).
+  4. Проверить, что выдан staging-сертификат. Браузер на нём ругается, это нормально: в issuer стоит «(STAGING)».
+  5. Указать `ACME_SERVER=letsencrypt` и снова деплой.
+- **Продление**: systemd-таймер `anki-acme-renew.timer` раз в сутки в 04:00 МСК (01:00 UTC), без случайной задержки. Логи: `journalctl -u anki-acme-renew`. Ручной запуск на ноде: `sudo bash /srv/myapp/acme/renew.sh`. Nginx перечитывает сертификат только при его смене.
+- **Откат**: `TLS_MODE=selfsigned` и деплой. Таймер выключается, данные Let's Encrypt остаются в `acme-data/`.
+- **Wildcard и дополнительные имена**: `ACME_EXTRA_DOMAINS` (через пробел, например `*.ecb.tonzer.ru`). При изменении списка доменов выпускается новый сертификат.
+- **Файлы на ноде** (`/srv/myapp`): `certs/` — активная пара; `certs/selfsigned/` — запасной самоподписанный; `acme-data/certificates/<host>-<server>.*` — сертификаты Let's Encrypt и ключ аккаунта ACME. `acme-data/` в git не попадает.
 
 ## Проверка каркаса (критерии готовности этапа 1)
 

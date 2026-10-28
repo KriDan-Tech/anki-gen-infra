@@ -4,9 +4,28 @@
     name: python3-cryptography
     state: present
 
-- name: Прочитать PUBLIC_HOST из infra/.env
+- name: Прочитать PUBLIC_HOST и настройки TLS из infra/.env
   ansible.builtin.set_fact:
     app_public_host: "{{ lookup('ansible.builtin.ini', 'PUBLIC_HOST', file=(playbook_dir | dirname) ~ '/.env', type='properties') }}"
+    app_tls_mode: "{{ lookup('ansible.builtin.ini', 'TLS_MODE', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='selfsigned') }}"
+    app_acme_server: "{{ lookup('ansible.builtin.ini', 'ACME_SERVER', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='letsencrypt-staging') }}"
+    app_selectel_username: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_USERNAME', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
+    app_selectel_password: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_PASSWORD', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
+    app_selectel_account_id: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_ACCOUNT_ID', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
+    app_selectel_project_id: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_PROJECT_ID', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
+
+# проверка до выпуска: в режиме letsencrypt нужен домен, сервер ACME и учётные данные Selectel
+- name: Проверить настройки TLS
+  ansible.builtin.assert:
+    that:
+      - app_tls_mode in ['selfsigned', 'letsencrypt']
+      - app_tls_mode != 'letsencrypt' or not (app_public_host is match('^[0-9.]+$') or ':' in app_public_host or app_public_host == 'localhost')
+      - app_tls_mode != 'letsencrypt' or app_acme_server in ['letsencrypt-staging', 'letsencrypt']
+      - app_tls_mode != 'letsencrypt' or (app_selectel_username | length) > 0
+      - app_tls_mode != 'letsencrypt' or (app_selectel_password | length) > 0
+      - app_tls_mode != 'letsencrypt' or (app_selectel_account_id | length) > 0
+      - app_tls_mode != 'letsencrypt' or (app_selectel_project_id | length) > 0
+    fail_msg: "Неверные настройки TLS (TLS_MODE, ACME_SERVER, PUBLIC_HOST, SELECTELV2_*): исправьте в infra/.env"
 
 # IPv4 или IPv6 → IP:, иначе DNS:; плюс localhost для локальной проверки
 - name: Вычислить SAN сертификата
@@ -24,10 +43,66 @@
     group: deploy
     mode: "0755"
 
+- name: Создать каталог запасного самоподписанного сертификата
+  ansible.builtin.file:
+    path: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0755"
+
+# миграция с одиночного самоподписанного: старая пара переносится в selfsigned/, ключ и сертификат не перевыпускаются
+- name: Проверить старую пару в certs/ и запасную в certs/selfsigned/
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ app_dir }}/{{ app_cert_dir }}/tls.key"
+    - "{{ app_dir }}/{{ app_cert_dir }}/tls.crt"
+    - "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.key"
+  register: app_pair_stat
+
+- name: Прочитать старый tls.crt (миграция)
+  community.crypto.x509_certificate_info:
+    path: "{{ app_dir }}/{{ app_cert_dir }}/tls.crt"
+  register: app_legacy_crt_info
+  when:
+    - app_pair_stat.results[1].stat.exists
+    - not app_pair_stat.results[2].stat.exists
+
+- name: Перенести старый самоподписанный ключ в selfsigned/ (миграция)
+  ansible.builtin.copy:
+    src: "{{ app_dir }}/{{ app_cert_dir }}/tls.key"
+    dest: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.key"
+    remote_src: true
+    mode: "0600"
+    owner: deploy
+    group: deploy
+  when:
+    - app_pair_stat.results[0].stat.exists
+    - app_pair_stat.results[1].stat.exists
+    - not app_pair_stat.results[2].stat.exists
+    - app_legacy_crt_info is not skipped
+    - app_legacy_crt_info.issuer == app_legacy_crt_info.subject
+
+- name: Перенести старый самоподписанный сертификат в selfsigned/ (миграция)
+  ansible.builtin.copy:
+    src: "{{ app_dir }}/{{ app_cert_dir }}/tls.crt"
+    dest: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.crt"
+    remote_src: true
+    mode: "0644"
+    owner: deploy
+    group: deploy
+  when:
+    - app_pair_stat.results[0].stat.exists
+    - app_pair_stat.results[1].stat.exists
+    - not app_pair_stat.results[2].stat.exists
+    - app_legacy_crt_info is not skipped
+    - app_legacy_crt_info.issuer == app_legacy_crt_info.subject
+
 # ECDSA P-256; ключ не меняется при смене PUBLIC_HOST, перевыпускается только сертификат
 - name: Сгенерировать ключ TLS (ECDSA P-256)
   community.crypto.openssl_privatekey:
-    path: "{{ app_dir }}/{{ app_cert_dir }}/tls.key"
+    path: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.key"
     type: ECC
     curve: secp256r1
     mode: "0600"
@@ -37,7 +112,7 @@
 
 - name: Сформировать CSR с SAN для TLS
   community.crypto.openssl_csr_pipe:
-    privatekey_path: "{{ app_dir }}/{{ app_cert_dir }}/tls.key"
+    privatekey_path: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.key"
     # пустой subject/issuer нарушает RFC 5280 (issuer MUST be non-empty): Chrome/Edge дают
     # непропускаемый ERR_CERT_INVALID даже для доверенного сертификата
     common_name: "{{ app_public_host }}"
@@ -50,11 +125,11 @@
       - "CA:FALSE"
   register: app_csr
 
-# одиночный самоподписанный сертификат (решение владельца I); срок — предел Apple, 825 дней
+# запасной самоподписанный сертификат (решение владельца I; активным становится при TLS_MODE=selfsigned); срок — предел Apple, 825 дней
 - name: Выпустить самоподписанный сертификат
   community.crypto.x509_certificate:
-    path: "{{ app_dir }}/{{ app_cert_dir }}/tls.crt"
-    privatekey_path: "{{ app_dir }}/{{ app_cert_dir }}/tls.key"
+    path: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.crt"
+    privatekey_path: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.key"
     csr_content: "{{ app_csr.csr }}"
     provider: selfsigned
     selfsigned_not_after: "+{{ app_cert_days }}d"
@@ -63,9 +138,33 @@
     group: deploy
   register: app_cert
 
+# активная пара, которую читает nginx: при selfsigned перезаписывается всегда, при letsencrypt — только если её ещё нет (первый выпуск)
+- name: Активная пара tls.key (из самоподписанного, если TLS_MODE=selfsigned)
+  ansible.builtin.copy:
+    src: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.key"
+    dest: "{{ app_dir }}/{{ app_cert_dir }}/tls.key"
+    remote_src: true
+    mode: "0600"
+    owner: deploy
+    group: deploy
+    force: "{{ app_tls_mode == 'selfsigned' }}"
+  register: app_tls_active_key
+
+- name: Активная пара tls.crt (из самоподписанного, если TLS_MODE=selfsigned)
+  ansible.builtin.copy:
+    src: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.crt"
+    dest: "{{ app_dir }}/{{ app_cert_dir }}/tls.crt"
+    remote_src: true
+    mode: "0644"
+    owner: deploy
+    group: deploy
+    force: "{{ app_tls_mode == 'selfsigned' }}"
+  register: app_tls_active_crt
+
 # на контроллер забирается только tls.crt (для доверенных устройств владельца); tls.key остаётся на ноде
 - name: Забрать tls.crt в infra/certs
   ansible.builtin.fetch:
-    src: "{{ app_dir }}/{{ app_cert_dir }}/tls.crt"
+    src: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.crt"
     dest: "{{ playbook_dir | dirname }}/certs/{{ inventory_hostname }}.crt"
     flat: true
+  when: app_tls_mode == 'selfsigned'

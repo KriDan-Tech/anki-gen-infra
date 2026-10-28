@@ -9,3 +9,7 @@
 - name: Start Docker compose
   ansible.builtin.import_tasks: docker.yml
   tags: docker
+
+- name: "Let's Encrypt: выпуск и таймер продления"
+  ansible.builtin.import_tasks: acme.yml
+  tags: [certs, acme]

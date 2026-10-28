@@ -1,0 +1,53 @@
+# Let's Encrypt (TLS_MODE=letsencrypt): каталог данных lego, юниты продления, первый выпуск или продление.
+# В режиме selfsigned таймер выключается; юниты и acme-data не удаляются (при возврате в letsencrypt аккаунт ACME уже есть).
+- name: Создать каталог данных lego (acme-data)
+  ansible.builtin.file:
+    path: "{{ app_dir }}/{{ app_acme_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: app_tls_mode == 'letsencrypt'
+
+- name: Юниты systemd продления сертификата
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - anki-acme-renew.service
+    - anki-acme-renew.timer
+  register: app_acme_units
+  when: app_tls_mode == 'letsencrypt'
+
+- name: Включить таймер продления сертификата
+  ansible.builtin.systemd_service:
+    name: anki-acme-renew.timer
+    daemon_reload: "{{ app_acme_units is changed }}"
+    enabled: true
+    state: started
+  when: app_tls_mode == 'letsencrypt'
+
+# ошибка здесь роняет play: proxy уже работает на самоподписанном сертификате
+- name: Выпуск или продление сертификата Let's Encrypt
+  ansible.builtin.command: "bash {{ app_dir }}/{{ app_acme_dir }}/renew.sh {{ app_dir }}"
+  register: app_acme_run
+  changed_when: "'tls: reloaded' in app_acme_run.stdout"
+  when: app_tls_mode == 'letsencrypt'
+
+- name: Проверить наличие таймера продления
+  ansible.builtin.stat:
+    path: /etc/systemd/system/anki-acme-renew.timer
+  register: app_acme_timer_unit
+  when: app_tls_mode == 'selfsigned'
+
+- name: Выключить таймер продления (TLS_MODE=selfsigned)
+  ansible.builtin.systemd_service:
+    name: anki-acme-renew.timer
+    enabled: false
+    state: stopped
+  when:
+    - app_tls_mode == 'selfsigned'
+    - app_acme_timer_unit.stat.exists

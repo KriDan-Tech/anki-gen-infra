@@ -302,7 +302,8 @@ services:
         condition: service_started
 
   # Единая точка входа стенда: TLS на 443, 80 → 301 на https. Конфиг — proxy/templates/default.conf.template,
-  # подстановка переменных делает штатный envsubst образа nginx. Сертификат — ./certs (выпускает Ansible).
+  # подстановка переменных делает штатный envsubst образа nginx. Сертификат — ./certs/tls.{crt,key}: самоподписанный (Ansible)
+  # или Let's Encrypt (сервис acme), см. README §TLS.
   # Образ закреплён тегом, как у web-frontend.
   proxy:
     image: nginx:1.30.6-alpine
@@ -334,6 +335,28 @@ services:
         condition: service_started
       mailpit:
         condition: service_started
+
+  # Let's Encrypt (DNS-01, Selectel): разовый запуск. Профиль acme — `docker compose up` сервис не поднимает.
+  # Вызывается acme/renew.sh (Ansible и systemd-таймер anki-acme-renew), обёртка внутри — acme/run.sh.
+  acme:
+    image: goacme/lego:v5.5.2
+    profiles: ["acme"]
+    restart: "no"
+    entrypoint: ["/bin/sh", "/acme/run.sh"]
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:-}
+      ACME_SERVER: ${ACME_SERVER:-letsencrypt-staging}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      ACME_EXTRA_DOMAINS: ${ACME_EXTRA_DOMAINS:-}
+      ACME_DNS_RESOLVERS: ${ACME_DNS_RESOLVERS:-}
+      SELECTELV2_USERNAME: ${SELECTELV2_USERNAME:-}
+      SELECTELV2_PASSWORD: ${SELECTELV2_PASSWORD:-}
+      SELECTELV2_ACCOUNT_ID: ${SELECTELV2_ACCOUNT_ID:-}
+      SELECTELV2_PROJECT_ID: ${SELECTELV2_PROJECT_ID:-}
+    volumes:
+      - ./acme/run.sh:/acme/run.sh:ro
+      - ./acme-data:/data
+      - ./certs:/certs
 
 volumes:
   postgres-data:

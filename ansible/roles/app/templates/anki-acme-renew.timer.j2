@@ -1,0 +1,11 @@
+[Unit]
+Description=dev-anki-gen: продление сертификата Let's Encrypt (раз в сутки)
+
+[Timer]
+# 04:00 МСК = 01:00 UTC; таймзона указана явно. Без RandomizedDelaySec: запуск ровно по расписанию
+OnCalendar={{ app_acme_timer_oncalendar }}
+# пропущенный запуск (нода была выключена) выполнится при следующем старте
+Persistent=true
+
+[Install]
+WantedBy=timers.target

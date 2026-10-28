@@ -15,4 +15,4 @@
       - proxy
     state: restarted
   # default({}): при запуске только --tags docker регистраций из preparation/certs нет
-  when: (app_proxy_conf | default({})) is changed or (app_cert | default({})) is changed
+  when: (app_proxy_conf | default({})) is changed or (app_tls_active_crt | default({})) is changed or (app_tls_active_key | default({})) is changed

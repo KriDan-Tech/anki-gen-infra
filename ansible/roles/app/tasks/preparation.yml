@@ -49,6 +49,15 @@
       - "--chown=deploy:deploy"
   register: app_proxy_conf
 
+- name: Скопировать скрипты acme на ноду
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../{{ app_acme_dir }}/"
+    dest: "{{ app_dir }}/{{ app_acme_dir }}/"
+    delete: false
+    rsync_opts:
+      - "--chown=deploy:deploy"
+  register: app_acme_scripts
+
 - name: Скопировать init-скрипты Postgres на ноду
   ansible.posix.synchronize:
     src: "{{playbook_dir}}/../{{app_db_migrations_dir}}/"

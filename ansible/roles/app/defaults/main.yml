@@ -5,6 +5,11 @@ app_db_migrations_dir: "postgres"
 app_proxy_dir: "proxy"
 app_cert_dir: "certs"
 app_cert_days: 825
+app_cert_selfsigned_dir: "certs/selfsigned"
+app_acme_dir: "acme"
+app_acme_data_dir: "acme-data"
+# 04:00 МСК = 01:00 UTC; таймзона в выражении, не зависит от TZ ноды (решение владельца 2026-10-28)
+app_acme_timer_oncalendar: "*-*-* 01:00:00 UTC"
 
 app_repos:
   - name: anki-gen-auth-keycloak
