@@ -43,7 +43,9 @@ set +f
 # время запуска задаёт таймер (04:00 МСК), поэтому случайная задержка lego не нужна
 set -- "$@" --no-random-sleep --force-cert-domains
 
-/usr/bin/lego "$@"
+# Release image v5.5.2 uses /lego (not /usr/bin/lego from the development Dockerfile).
+# Verified: https://github.com/go-acme/lego/blob/v5.5.2/buildx.Dockerfile
+/lego "$@"
 
 # установка в активную пару: сначала ключ, затем сертификат (mv внутри одного каталога)
 if ! cmp -s "/data/certificates/$CERT_NAME.crt" /certs/tls.crt; then
