@@ -45,7 +45,9 @@ set -- "$@" --no-random-sleep --force-cert-domains
 
 # Release image v5.5.2 uses /lego (not /usr/bin/lego from the development Dockerfile).
 # Verified: https://github.com/go-acme/lego/blob/v5.5.2/buildx.Dockerfile
-/lego "$@"
+# Wait after publishing TXT before ACME validation; replaces propagation checks.
+# Verified: lego v5.5.2 cmd/internal/flags/{names,flags}.go (dns.propagation.wait).
+/lego "$@" --dns.propagation.wait 120s
 
 # установка в активную пару: сначала ключ, затем сертификат (mv внутри одного каталога)
 if ! cmp -s "/data/certificates/$CERT_NAME.crt" /certs/tls.crt; then
