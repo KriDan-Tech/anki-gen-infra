@@ -34,9 +34,9 @@ EOSQL
 }
 
 create_service_db "keycloak_db"  "${KEYCLOAK_DB_USER}"  "${KEYCLOAK_DB_PASSWORD}"
-create_service_db "source_db"    "${SOURCE_DB_USER}"    "${SOURCE_DB_PASSWORD}"
-create_service_db "extractor_db" "${EXTRACTOR_DB_USER}" "${EXTRACTOR_DB_PASSWORD}"
-create_service_db "builder_db"   "${BUILDER_DB_USER}"   "${BUILDER_DB_PASSWORD}"
-create_service_db "deck_db"      "${DECK_DB_USER}"      "${DECK_DB_PASSWORD}"
+create_service_db "source_sandbox_db"    "${SOURCE_DB_USER}"    "${SOURCE_DB_PASSWORD}"
+create_service_db "extractor_sandbox_db" "${EXTRACTOR_DB_USER}" "${EXTRACTOR_DB_PASSWORD}"
+create_service_db "builder_sandbox_db"   "${BUILDER_DB_USER}"   "${BUILDER_DB_PASSWORD}"
+create_service_db "deck_sandbox_db"      "${DECK_DB_USER}"      "${DECK_DB_PASSWORD}"
 
 echo "01-databases.sh: все базы и роли готовы."

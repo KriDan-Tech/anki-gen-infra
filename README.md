@@ -90,3 +90,32 @@ docker compose up -d --build
 
 ## Базы данных
 См. `postgres/README.md`.
+
+## YooKassa sandbox (owner-run only)
+
+Sandbox only: TEST credits are not production entitlements, and there is no live-money mode. Billing has a dedicated `billing-sandbox-db`/`billing-sandbox-data` volume with no published port. Never use a live shop. The billing service and application repositories are checked out by the existing Ansible `app_repos` list; rollout remains the owner-run `ansible/site.yml` workflow (see the repository's normal inventory/SSH setup). Do not run a separate deployment path.
+
+Before rollout, set `PUBLIC_HOST` to the existing public host (the return URL is generated as `https://${PUBLIC_HOST}/billing`) and prepare the test shop credentials/catalogue. Exact ready-to-copy keys and safe placeholder values:
+
+```dotenv
+BILLING_SANDBOX_DB_PASSWORD=REPLACE_WITH_UNIQUE_SANDBOX_DB_PASSWORD
+YOOKASSA_SHOP_ID=REPLACE_WITH_TEST_SHOP_ID
+YOOKASSA_SECRET_KEY=test_REPLACE_WITH_TEST_SHOP_SECRET
+# The verified recipient.account_id expected in authoritative payment GET responses;
+# do not assume this equals the shop ID.
+YOOKASSA_EXPECTED_ACCOUNT_ID=REPLACE_WITH_EXPECTED_RECIPIENT_ACCOUNT_ID
+# Replace [] with owner-selected, valid JSON package definitions; keep the single quotes.
+BILLING_PACKAGES_JSON='[{"id":"owner-selected-id","title":"Owner-selected title","amountKopecks":10000,"credits":100}]'
+# Replace with a randomly generated secret of at least 32 characters.
+BILLING_INTERNAL_SECRET=REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS
+# Owner-selected nonnegative integer credit rates; zero is permitted.
+BILLING_PAGE_X_CREDITS=0
+BILLING_PAGE_Y_CREDITS=0
+BILLING_TARIFF_VERSION=1
+```
+
+The package example is syntax-only: choose the actual ID, title, amount in kopecks, and credits before enabling checkout. Do not leave example credentials or a placeholder catalogue in use. Keep `.env` private (`chmod 600`); never commit it. The existing compose configuration generates `YOOKASSA_RETURN_URL` from `PUBLIC_HOST`.
+
+Before the owner runs the existing Ansible rollout, register the exact HTTPS `POST https://PUBLIC_HOST/api/billing/webhooks/yookassa` notification in the test-shop cabinet for `payment.succeeded`, `payment.canceled`, and `payment.waiting_for_capture`. The endpoint must be publicly reachable over HTTPS with a trusted certificate. Use only test-shop credentials (the code also enforces the local `test_` prefix gate); provider credential format has an outstanding verification caveat documented in `anki-gen-billing-service/docs/api-verification.md`.
+
+Billing uses edited initial V1 migrations. Use fresh, separate sandbox databases and the dedicated RabbitMQ vhost; never apply edited initial migrations to existing databases/vhosts. Do not delete existing volumes as a shortcut. See `anki-gen-billing-service/README.md` for service-level details.
