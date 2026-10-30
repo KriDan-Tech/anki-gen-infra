@@ -35,7 +35,7 @@ Billing-БД этот скрипт не создаёт. Пароли перед�
 |---|---|
 | Контейнер | `billing-sandbox-db` (`postgres:17`) |
 | База | `billing_sandbox_db` |
-| Роль | `billing_sandbox` |
+| Роль | `BILLING_SANDBOX_DB_USER` |
 | Пароль | `BILLING_SANDBOX_DB_PASSWORD` |
 | Volume | `billing-sandbox-data` |
 | Доступ | Только внутри сети Compose, порт на хост не опубликован |
@@ -43,11 +43,12 @@ Billing-БД этот скрипт не создаёт. Пароли перед�
 Базу и роль создаёт стандартный entrypoint образа PostgreSQL через `POSTGRES_DB` и
 `POSTGRES_USER` при первой инициализации пустого volume. `billing-service` получает
 подключение через `BILLING_DB_HOST`, `BILLING_DB_NAME`, `BILLING_DB_USER`, `BILLING_DB_PASSWORD`;
-Compose передаёт пароль из `BILLING_SANDBOX_DB_PASSWORD`.
+Compose передаёт имя роли из `BILLING_SANDBOX_DB_USER`, пароль — из
+`BILLING_SANDBOX_DB_PASSWORD`.
 
 Схему billing создаёт Flyway при запуске сервиса. Начальные миграции рассчитаны на новую
-sandbox-БД; для уже установленной схемы требуется отдельная миграция. Изменение пароля
-в окружении само по себе не меняет пароль роли в существующем volume.
+sandbox-БД; для уже установленной схемы требуется отдельная миграция. Изменение имени пользователя или пароля
+в окружении само по себе не меняет существующие роли в инициализированном volume.
 
 Миграции схемы внутри каждой базы делает сам сервис: Flyway (Java-сервисы), Alembic (source-service).
 init-скрипт только создаёт базы и роли, таблиц не трогает.

@@ -302,12 +302,12 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: billing_sandbox_db
-      POSTGRES_USER: billing_sandbox
+      POSTGRES_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
       POSTGRES_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
     volumes:
       - billing-sandbox-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U billing_sandbox -d billing_sandbox_db"]
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 5s
       retries: 12
@@ -319,7 +319,7 @@ services:
     environment:
       BILLING_DB_HOST: billing-sandbox-db
       BILLING_DB_NAME: billing_sandbox_db
-      BILLING_DB_USER: billing_sandbox
+      BILLING_DB_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
       BILLING_DB_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
       YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
       YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY:-}
