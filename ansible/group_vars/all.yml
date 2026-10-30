@@ -20,6 +20,13 @@ hardening_users:
     ssh_keys:
       - danil.pub
 
+  - name: danil_laptop
+    comment: "Danil Krivobok`s laptop, administrator"
+    shell: /bin/bash
+    sudo: true
+    ssh_keys:
+      - danil_laptop.pub
+
   - name: deploy
     comment: "Application deployment"
     shell: /bin/bash
