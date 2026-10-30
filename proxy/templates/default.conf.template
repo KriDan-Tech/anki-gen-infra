@@ -36,6 +36,17 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
+    # Only the exact webhook escapes the staging client-IP allowlist. No payment data is trusted here.
+    location = /api/billing/webhooks/yookassa {
+        allow all;
+        limit_except POST { deny all; }
+        client_max_body_size 16k;
+        proxy_pass ${API_GATEWAY_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
     # API gateway. Загрузка книг: лимит размера и без буферизации запроса (иначе 413 для PDF > 1m)
     location ^~ /api/ {
         proxy_pass ${API_GATEWAY_URL};

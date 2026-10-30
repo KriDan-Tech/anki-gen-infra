@@ -33,3 +33,6 @@ app_repos:
   - name: anki-gen-vocab-extractor
     url: git@github.com:KriDan-Tech/anki-gen-vocab-extractor.git
     version: main
+  - name: anki-gen-billing-service
+    url: git@github.com:KriDan-Tech/anki-gen-billing-service.git
+    version: main

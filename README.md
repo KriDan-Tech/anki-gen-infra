@@ -90,3 +90,16 @@ docker compose up -d --build
 
 ## Базы данных
 См. `postgres/README.md`.
+
+## Billing (YooKassa sandbox)
+
+`billing-service` работает только в тестовом режиме YooKassa и использует отдельную
+БД `billing-sandbox-db` без опубликованного порта. Переменные конфигурации перечислены
+в `.env.example`; `YOOKASSA_RETURN_URL` формируется как `https://${PUBLIC_HOST}/billing`.
+
+Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публичный HTTPS с доверенным
+сертификатом. События: `payment.succeeded`, `payment.canceled`, `payment.waiting_for_capture`.
+
+Текущие начальные миграции рассчитаны на новые изолированные sandbox-БД и RabbitMQ vhost.
+Для существующих БД требуется отдельная миграция; удаление рабочих volumes не является
+путём обновления.

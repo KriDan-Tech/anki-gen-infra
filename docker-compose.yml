@@ -49,6 +49,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: anki-sandbox
+      RABBITMQ_VHOST: anki-sandbox
     ports:
       - "5672:5672"      # AMQP
       - "15672:15672"    # management UI
@@ -122,13 +124,16 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      SOURCE_DB_NAME: source_db
+      BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
+      SOURCE_DB_NAME: source_sandbox_db
       SOURCE_DB_USER: ${SOURCE_DB_USER}
       SOURCE_DB_PASSWORD: ${SOURCE_DB_PASSWORD}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: anki-sandbox
+      RABBITMQ_VHOST: anki-sandbox
       SOURCES_DIR: /data/sources
     volumes:
       - sources:/data/sources
@@ -150,13 +155,15 @@ services:
       SERVER_PORT: 8082
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      EXTRACTOR_DB_NAME: extractor_db
+      EXTRACTOR_DB_NAME: extractor_sandbox_db
       EXTRACTOR_DB_USER: ${EXTRACTOR_DB_USER}
       EXTRACTOR_DB_PASSWORD: ${EXTRACTOR_DB_PASSWORD}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: anki-sandbox
+      RABBITMQ_VHOST: anki-sandbox
       # ИИ-переменные задачи DETECT (этап 3)
       AI_BASE_URL: ${AI_BASE_URL}
       AI_API_KEY: ${AI_API_KEY}
@@ -167,6 +174,8 @@ services:
       AI_MAX_PAGES_PER_EXTRACTION: ${AI_MAX_PAGES_PER_EXTRACTION:-200}
       # блоки книги и source.parsed.v1 (этап 3)
       SOURCE_SERVICE_URL: http://source-service:8081
+      BILLING_SERVICE_URL: http://billing-service:8085
+      BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
     depends_on:
       postgres:
         condition: service_healthy
@@ -187,13 +196,15 @@ services:
       SERVER_PORT: 8083
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      BUILDER_DB_NAME: builder_db
+      BUILDER_DB_NAME: builder_sandbox_db
       BUILDER_DB_USER: ${BUILDER_DB_USER}
       BUILDER_DB_PASSWORD: ${BUILDER_DB_PASSWORD}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: anki-sandbox
+      RABBITMQ_VHOST: anki-sandbox
       # ИИ-переменные задачи TRANSLATE (этап 2)
       AI_BASE_URL: ${AI_BASE_URL}
       AI_API_KEY: ${AI_API_KEY}
@@ -221,13 +232,16 @@ services:
       SERVER_PORT: 8084
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      DECK_DB_NAME: deck_db
+      BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
+      DECK_DB_NAME: deck_sandbox_db
       DECK_DB_USER: ${DECK_DB_USER}
       DECK_DB_PASSWORD: ${DECK_DB_PASSWORD}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: anki-sandbox
+      RABBITMQ_VHOST: anki-sandbox
       # retranslate → card-builder /internal/translations/lookup (этап 2)
       CARD_BUILDER_URL: http://card-builder:8083
       # перед удалением колоды — проверка поиска слов в vocab-extractor (план Q2, вариант «в»)
@@ -255,6 +269,7 @@ services:
     environment:
       SERVER_PORT: 8080
       SOURCE_SERVICE_URL: http://source-service:8081
+      BILLING_SERVICE_URL: http://billing-service:8085
       VOCAB_EXTRACTOR_URL: http://vocab-extractor:8082
       CARD_BUILDER_URL: http://card-builder:8083
       DECK_SERVICE_URL: http://deck-service:8084
@@ -280,6 +295,44 @@ services:
         condition: service_started
       deck-service:
         condition: service_started
+
+  # Dedicated sandbox ledger; never shares production/application PostgreSQL or a host port.
+  billing-sandbox-db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: billing_sandbox_db
+      POSTGRES_USER: billing_sandbox
+      POSTGRES_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
+    volumes:
+      - billing-sandbox-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billing_sandbox -d billing_sandbox_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  billing-service:
+    build:
+      context: ./anki-gen-billing-service
+    restart: unless-stopped
+    environment:
+      BILLING_DB_HOST: billing-sandbox-db
+      BILLING_DB_NAME: billing_sandbox_db
+      BILLING_DB_USER: billing_sandbox
+      BILLING_DB_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
+      YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
+      YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY:-}
+      YOOKASSA_EXPECTED_ACCOUNT_ID: ${YOOKASSA_EXPECTED_ACCOUNT_ID:-}
+      YOOKASSA_RETURN_URL: https://${PUBLIC_HOST}/billing
+      BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
+      BILLING_PAGE_X_CREDITS: ${BILLING_PAGE_X_CREDITS:?Set zero-word page rate}
+      BILLING_PAGE_Y_CREDITS: ${BILLING_PAGE_Y_CREDITS:?Set nonempty page rate}
+      BILLING_TARIFF_VERSION: ${BILLING_TARIFF_VERSION:-1}
+      BILLING_PACKAGES_JSON: ${BILLING_PACKAGES_JSON:-[]}
+    depends_on:
+      billing-sandbox-db:
+        condition: service_healthy
 
   # Веб-интерфейс (Angular): статика и nginx самого сервиса. Конфиг Keycloak отдаётся браузеру из /config.json
   # (nginx берёт значения из окружения ниже). Основной вход — через proxy; прямой порт 3000 оставлен до прода;
@@ -362,3 +415,4 @@ volumes:
   postgres-data:
   deck-exports:
   sources:
+  billing-sandbox-data:
