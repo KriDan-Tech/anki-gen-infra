@@ -312,10 +312,7 @@ services:
       YOOKASSA_EXPECTED_ACCOUNT_ID: ${YOOKASSA_EXPECTED_ACCOUNT_ID:-}
       YOOKASSA_RETURN_URL: https://${PUBLIC_HOST}/billing
       BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
-      BILLING_PAGE_X_CREDITS: ${BILLING_PAGE_X_CREDITS:?Set zero-word page rate}
-      BILLING_PAGE_Y_CREDITS: ${BILLING_PAGE_Y_CREDITS:?Set nonempty page rate}
       BILLING_TARIFF_VERSION: ${BILLING_TARIFF_VERSION:-1}
-      BILLING_PACKAGES_JSON: ${BILLING_PACKAGES_JSON:-[]}
     depends_on:
       postgres:
         condition: service_healthy
