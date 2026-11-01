@@ -17,6 +17,7 @@
 | vocab-extractor | build `../vocab-extractor` | — (внутри сети, 8082) | Извлечение слов |
 | card-builder | build `../card-builder` | — (внутри сети, 8083) | Сборка карточек |
 | deck-service | build `../deck-service` | — (внутри сети, 8084) | Колоды, экспорт `.apkg` |
+| billing-service | build `../billing-service` | — (внутри сети) | Платежный sandbox ledger в отдельной базе общего PostgreSQL |
 | acme | `goacme/lego:v5.5.2` | — | разовый запуск: выпуск/продление LE |
 
 **Наружу публикуются только gateway (8080), Keycloak (8180) и Mailpit (8025).** Порты сервисов
@@ -93,13 +94,8 @@ docker compose up -d --build
 
 ## Billing (YooKassa sandbox)
 
-`billing-service` работает только в тестовом режиме YooKassa и использует отдельную
-БД `billing-sandbox-db` без опубликованного порта. Переменные конфигурации перечислены
-в `.env.example`; `YOOKASSA_RETURN_URL` формируется как `https://${PUBLIC_HOST}/billing`.
+В инфраструктурном Compose `billing-service` подключается к отдельной базе `billing_sandbox_db` и роли `BILLING_SANDBOX_DB_USER` в общем контейнере `postgres:17`. Для неё используется опубликованный общий порт PostgreSQL 5432; отдельного контейнера, изолированного порта и отдельного volume Billing нет. Переменные перечислены в `.env.example`; `YOOKASSA_RETURN_URL` формируется как `https://${PUBLIC_HOST}/billing`. При запуске с пустым `postgres-data` init-скрипт автоматически создаёт все базы и роли, включая Billing; затем сервисы применяют свои миграции. Ручное создание Billing-БД при чистом запуске не требуется. Подробности — в `postgres/README.md`.
 
-Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публичный HTTPS с доверенным
-сертификатом. События: `payment.succeeded`, `payment.canceled`, `payment.waiting_for_capture`.
+Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публичный HTTPS с доверенным сертификатом. События: `payment.succeeded`, `payment.canceled`, `payment.waiting_for_capture`.
 
-Текущие начальные миграции рассчитаны на новые изолированные sandbox-БД и RabbitMQ vhost.
-Для существующих БД требуется отдельная миграция; удаление рабочих volumes не является
-путём обновления.
+Текущие начальные миграции рассчитаны на новую sandbox-БД и RabbitMQ vhost. Для существующих БД требуется отдельная миграция; удаление рабочих volumes не является путём обновления.

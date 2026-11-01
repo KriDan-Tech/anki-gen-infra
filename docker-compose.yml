@@ -28,6 +28,8 @@ services:
       BUILDER_DB_PASSWORD: ${BUILDER_DB_PASSWORD}
       DECK_DB_USER: ${DECK_DB_USER}
       DECK_DB_PASSWORD: ${DECK_DB_PASSWORD}
+      BILLING_SANDBOX_DB_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
+      BILLING_SANDBOX_DB_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
@@ -296,28 +298,12 @@ services:
       deck-service:
         condition: service_started
 
-  # Dedicated sandbox ledger; never shares production/application PostgreSQL or a host port.
-  billing-sandbox-db:
-    image: postgres:17
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: billing_sandbox_db
-      POSTGRES_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
-      POSTGRES_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
-    volumes:
-      - billing-sandbox-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
   billing-service:
     build:
       context: ./anki-gen-billing-service
     restart: unless-stopped
     environment:
-      BILLING_DB_HOST: billing-sandbox-db
+      BILLING_DB_HOST: postgres
       BILLING_DB_NAME: billing_sandbox_db
       BILLING_DB_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
       BILLING_DB_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
@@ -331,7 +317,7 @@ services:
       BILLING_TARIFF_VERSION: ${BILLING_TARIFF_VERSION:-1}
       BILLING_PACKAGES_JSON: ${BILLING_PACKAGES_JSON:-[]}
     depends_on:
-      billing-sandbox-db:
+      postgres:
         condition: service_healthy
 
   # Веб-интерфейс (Angular): статика и nginx самого сервиса. Конфиг Keycloak отдаётся браузеру из /config.json
@@ -415,4 +401,3 @@ volumes:
   postgres-data:
   deck-exports:
   sources:
-  billing-sandbox-data:
