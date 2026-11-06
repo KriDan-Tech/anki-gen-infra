@@ -16,7 +16,34 @@ services:
       - stalwart-data:{{ stalwart_data }}
       - stalwart-logs:{{ stalwart_logs }}
 
+  roundcube:
+    image: roundcube/roundcubemail:{{roundcube_version}}
+    container_name: roundcube
+    restart: unless-stopped
+
+    depends_on:
+      - stalwart
+
+    ports:
+      - "8085:80"
+
+    environment:
+      ROUNDCUBEMAIL_DB_TYPE: sqlite
+      ROUNDCUBEMAIL_SKIN: elastic
+
+      # IMAP Stalwart
+      ROUNDCUBEMAIL_DEFAULT_HOST: "ssl://stalwart"
+      ROUNDCUBEMAIL_DEFAULT_PORT: 993
+
+      # SMTP Stalwart
+      ROUNDCUBEMAIL_SMTP_SERVER: "ssl://stalwart"
+      ROUNDCUBEMAIL_SMTP_PORT: 465
+
+    volumes:
+      - roundcube-db:{{roundcube_data}}
+
 volumes:
   stalwart-etc:
   stalwart-data:
   stalwart-logs:
+  roundcube-db:

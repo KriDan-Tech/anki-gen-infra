@@ -4,6 +4,13 @@
   roles:
     - geerlingguy.docker
 
+- name: Lego for ACME
+  hosts: subway-service
+  become: true
+  roles:
+    - role: lego
+      tags: lego
+
 - name: Deploy stalwart
   hosts: subway-service
   become: true

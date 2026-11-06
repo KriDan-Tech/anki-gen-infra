@@ -4,3 +4,7 @@ stalwart_data: "/var/lib/stalwart"
 stalwart_logs: "/var/log/stalwart"
 
 stalwart_crt_domain: "192.168.0.117"
+
+roundcube_version: "1.7.5-apache"
+roundcube_data: "/var/lib/roundcube/db"
+

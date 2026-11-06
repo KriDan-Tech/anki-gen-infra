@@ -1,0 +1,33 @@
+
+- name: Create lego directories
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - "{{ lego_dir }}"
+    - "{{ lego_dir }}/state"
+    - "{{ lego_dir }}/secrets"
+
+- name: Install Selectel password
+  become: true
+  ansible.builtin.copy:
+    content: "{{ lego_selectel_password }}"
+    dest: "{{ lego_dir }}/secrets/selectel-password"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  diff: false
+
+- name: Install lego Compose configuration
+  become: true
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ lego_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0600"

@@ -1,0 +1,24 @@
+services:
+  lego:
+    image: {{ lego_image | to_json }}
+    command: ["run"]
+    environment:
+      LEGO_ACCEPT_TOS: "true"
+      LEGO_EMAIL: {{ lego_email | to_json }}
+      LEGO_DOMAINS: {{ lego_domain | to_json }}
+      LEGO_SERVER: {{ lego_server | to_json }}
+      LEGO_DNS: "selectelv2"
+      LEGO_PATH: "/var/lib/lego"
+
+      SELECTELV2_USERNAME: {{ lego_selectel_username | to_json }}
+      SELECTELV2_ACCOUNT_ID: {{ lego_selectel_account_id | string | to_json }}
+      SELECTELV2_PROJECT_ID: {{ lego_selectel_project_id | to_json }}
+      SELECTELV2_PASSWORD_FILE: "/run/secrets/selectel_password"
+    volumes:
+      - "./state:/var/lib/lego"
+    secrets:
+      - selectel_password
+
+secrets:
+  selectel_password:
+    file: "./secrets/selectel-password"
