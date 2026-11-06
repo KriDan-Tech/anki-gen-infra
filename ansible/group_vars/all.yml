@@ -41,7 +41,4 @@ docker_users:
   - deploy
 
 
-# Wireguard Mash settings
-wireguard_interface: wg0
-wireguard_port: 51820
-wireguard_address_prefix: "10.0.0"
+
