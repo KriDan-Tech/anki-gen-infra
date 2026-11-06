@@ -1,0 +1,24 @@
+- name: Create stalwart directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /opt/stalwart
+
+- name: Deploy stalwart docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/stalwart/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "docker compose -f %s config --quiet"
+
+- name: Start Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /opt/stalwart
+    state: present
+    pull: missing

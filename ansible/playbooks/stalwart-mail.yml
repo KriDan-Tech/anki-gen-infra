@@ -1,0 +1,12 @@
+- name: Docker install
+  hosts: subway-service
+  become: true
+  roles:
+    - geerlingguy.docker
+
+- name: Deploy stalwart
+  hosts: subway-service
+  become: true
+  roles:
+    - role: stalwart
+      tags: stalwart

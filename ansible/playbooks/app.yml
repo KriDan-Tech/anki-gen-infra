@@ -1,0 +1,12 @@
+- name: Docker install
+  hosts: app-nodes
+  become: true
+  roles:
+    - geerlingguy.docker
+
+- name: App install and startup
+  hosts: app-nodes
+  become: true
+  roles:
+    - role: app
+      tags: app

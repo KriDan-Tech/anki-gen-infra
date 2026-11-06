@@ -1,0 +1,22 @@
+services:
+  stalwart:
+    image: stalwartlabs/stalwart:{{ stalwart_image_version }}
+    container_name: stalwart
+    init: true
+    restart: unless-stopped
+    ports:
+      - "25:25"
+      - "465:465"
+      - "993:993"
+      - "995:995"
+      - "4190:4190"
+      - "8080:8080"
+    volumes:
+      - stalwart-etc:{{ stalwart_etc }}
+      - stalwart-data:{{ stalwart_data }}
+      - stalwart-logs:{{ stalwart_logs }}
+
+volumes:
+  stalwart-etc:
+  stalwart-data:
+  stalwart-logs:

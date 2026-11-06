@@ -10,18 +10,6 @@
   hosts: all
   become: true
   roles:
-    - role: hardening
-      tags: hardening
+    - role: proxmox_vm
+      tags: proxmox_vm
 
-- name: Docker install
-  hosts: all
-  become: true
-  roles:
-    - geerlingguy.docker
-
-- name: App install and startup
-  hosts: all
-  become: true
-  roles:
-    - role: app
-      tags: app
