@@ -27,7 +27,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
   }
 
   disk {
-    datastore_id = var.datastore
+    datastore_id = coalesce(each.value.datastore, var.datastore)
     interface    = "scsi0"
     size         = each.value.disk
   }
@@ -41,7 +41,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
   }
 
   initialization {
-    datastore_id = var.datastore
+    datastore_id = coalesce(each.value.datastore, var.datastore)
 
     ip_config {
       ipv4 {

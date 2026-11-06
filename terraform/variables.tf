@@ -46,6 +46,7 @@ variable "vms" {
     ip       = string
     cores    = number
     memory   = number
+    datastore = optional(string)
     disk     = number
     group    = string
   }))

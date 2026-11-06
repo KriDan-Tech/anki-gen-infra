@@ -1,6 +1,13 @@
-[anki-gen-node]
+[app-nodes]
 %{ for name, vm in vms ~}
-%{ if vm.group == "anki-gen-node" ~}
+%{ if vm.group == "app-prod" ~}
+${name} ansible_host=${vm.ip}
+%{ endif ~}
+%{ endfor ~}
+
+[subway-service]
+%{ for name, vm in vms ~}
+%{ if vm.group == "subway-prod" ~}
 ${name} ansible_host=${vm.ip}
 %{ endif ~}
 %{ endfor ~}
