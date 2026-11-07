@@ -3,7 +3,7 @@ name: dev-anki-gen
 # Этапы 1–6. Поднимает инфраструктуру (postgres, rabbitmq, mailpit), keycloak, api-gateway,
 # source-service (Python) и Java-сервисы vocab-extractor / card-builder / deck-service.
 # Основной вход — сервис proxy (80 → 301 на 443, 443): все адреса стенда на одном origin https://PUBLIC_HOST/.
-# Прямые порты сервисов (3000, 8080, 8180, 8025, 1025, 5432, 5672, 15672) пока оставлены для стенда и закрываются перед продом (план, §6).
+# Прямые HTTP-порты Keycloak, Mailpit, gateway и frontend опубликованы только на loopback; прочие инфраструктурные порты оставлены как настроены ниже.
 # Каждый сервис собирается из своего репозитория (полирепо): build.context: ./<репозиторий>.
 # Каталоги ./<репозиторий> раскладывает Ansible (roles/app, список app_repos в roles/app/defaults/main.yml):
 # новый сервис добавлять в оба места с одинаковым именем.
@@ -68,7 +68,7 @@ services:
     container_name: anki-mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025"      # web UI (прямой доступ, до прода)
+      - "127.0.0.1:8025:8025" # web UI доступен только локально
       - "1025:1025"      # SMTP
     environment:
       MP_MAX_MESSAGES: 500
@@ -106,7 +106,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     ports:
-      - "8180:8080"      # прямой доступ к Keycloak (стенд; до прода). Основной вход — через proxy, /auth/
+      - "127.0.0.1:8180:8080" # прямой доступ только локально; основной вход через proxy, /auth/
     depends_on:
       postgres:
         condition: service_healthy
@@ -285,7 +285,7 @@ services:
       # за proxy: Spring берёт схему и хост из X-Forwarded-*, Swagger строит https-адреса (код gateway не меняется)
       SERVER_FORWARD_HEADERS_STRATEGY: framework
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       keycloak:
         condition: service_started
@@ -332,7 +332,7 @@ services:
       KEYCLOAK_CLIENT_ID: web
       MAX_UPLOAD_SIZE: 100m
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     depends_on:
       api-gateway:
         condition: service_started
@@ -355,6 +355,8 @@ services:
       KEYCLOAK_UPSTREAM: http://keycloak:8080
       MAILPIT_UPSTREAM: http://mailpit:8025
       MAX_UPLOAD_SIZE: 100m
+      # адрес TCP peer Traefik, видимый nginx (infra/.env); один IP/CIDR, без него compose завершится ошибкой
+      TRAEFIK_TRUSTED_CIDR: ${TRAEFIK_TRUSTED_CIDR:?задайте TRAEFIK_TRUSTED_CIDR в infra/.env, см. .env.example}
       # подсеть админки (infra/.env); без неё compose падает с сообщением
       ADMIN_ALLOWED_CIDR: ${ADMIN_ALLOWED_CIDR:?задайте ADMIN_ALLOWED_CIDR в infra/.env, см. .env.example}
       # белый список всего стенда (infra/.env); all — без ограничения
