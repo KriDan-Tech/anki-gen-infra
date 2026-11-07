@@ -64,6 +64,33 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
+    # Billing administration is isolated to the admin client CIDR. proxy_pass without a URI preserves the path.
+    location = /billing-admin {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${BILLING_SERVICE_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ^~ /billing-admin/ {
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${BILLING_SERVICE_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
     # API gateway. Загрузка книг: лимит размера и без буферизации запроса (иначе 413 для PDF > 1m)
     location ^~ /api/ {
         proxy_pass ${API_GATEWAY_URL};
@@ -82,6 +109,59 @@ server {
     # Keycloak на контекстном пути /auth (KC_HTTP_RELATIVE_PATH=/auth). proxy_pass без URI сохраняет путь
     location = /auth {
         return 301 /auth/;
+    }
+
+    # Realm login endpoints and Keycloak static resources are reachable to either audience
+    # (ordinary allowed clients or the restricted billing-admin network).
+    location = /auth/realms/anki-gen {
+        allow ${ALLOWED_CIDR};
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${KEYCLOAK_UPSTREAM};
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ^~ /auth/realms/anki-gen/ {
+        allow ${ALLOWED_CIDR};
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${KEYCLOAK_UPSTREAM};
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ^~ /auth/resources/ {
+        allow ${ALLOWED_CIDR};
+        allow ${ADMIN_ALLOWED_CIDR};
+        deny all;
+        proxy_pass ${KEYCLOAK_UPSTREAM};
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP $remote_addr;
     }
 
     location ^~ /auth/ {
