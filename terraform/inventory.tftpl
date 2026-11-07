@@ -12,3 +12,9 @@ ${name} ansible_host=${vm.ip}
 %{ endif ~}
 %{ endfor ~}
 
+[metrics]
+%{ for name, vm in vms ~}
+%{ if vm.group == "metrics" ~}
+${name} ansible_host=${vm.ip}
+%{ endif ~}
+%{ endfor ~}
