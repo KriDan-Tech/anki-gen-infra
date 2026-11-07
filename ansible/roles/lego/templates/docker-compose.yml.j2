@@ -9,13 +9,13 @@ services:
       LEGO_SERVER: {{ lego_server | to_json }}
       LEGO_DNS: "selectelv2"
       LEGO_PATH: "/var/lib/lego"
-
+      LEGO_DNS_RESOLVERS: "8.8.8.8:53"
       SELECTELV2_USERNAME: {{ lego_selectel_username | to_json }}
       SELECTELV2_ACCOUNT_ID: {{ lego_selectel_account_id | string | to_json }}
       SELECTELV2_PROJECT_ID: {{ lego_selectel_project_id | to_json }}
       SELECTELV2_PASSWORD_FILE: "/run/secrets/selectel_password"
     volumes:
-      - "./state:/var/lib/lego"
+      - "{{ lego_dir }}:/var/lib/lego"
     secrets:
       - selectel_password
 

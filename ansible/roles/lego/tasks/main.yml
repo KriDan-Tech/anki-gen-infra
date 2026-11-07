@@ -31,3 +31,30 @@
     owner: root
     group: root
     mode: "0600"
+
+- name: Obtain TLS certificates with Lego
+  become: true
+  ansible.builtin.command:
+    cmd: docker compose run --rm lego
+    chdir: "{{ lego_dir }}"
+  register: lego_result
+  changed_when: lego_result.rc == 0
+
+- name: Set certificates directory permissions
+  become: true
+  ansible.builtin.file:
+    path: "{{ lego_dir }}/certificates"
+    owner: root
+    group: "{{ lego_cert_owner_group_gid }}"
+    mode: "0750"
+
+- name: Set certificate files permissions
+  become: true
+  ansible.builtin.file:
+    path: "{{ lego_dir }}/certificates/{{ item }}"
+    owner: root
+    group: "{{ lego_cert_owner_group_gid }}"
+    mode: "0640"
+  loop:
+    - "{{ lego_domain }}.crt"
+    - "{{ lego_domain }}.key"

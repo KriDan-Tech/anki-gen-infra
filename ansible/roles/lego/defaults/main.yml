@@ -1,7 +1,7 @@
 ---
 lego_image: goacme/lego:v5.0.0
 lego_dir: /opt/lego
-lego_domain: mail.dcb.tonzer.ru
+lego_domain: mail.ecb.tonzer.ru
 lego_email: ""
 lego_server: letsencrypt
 
