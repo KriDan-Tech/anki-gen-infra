@@ -1,0 +1,13 @@
+- name: Docker install
+  hosts: ecb-metrics
+  become: true
+  roles:
+    - geerlingguy.docker
+
+- name: Deploy metric`s apps
+  hosts: ecb-metrics
+  become: true
+  roles:
+    - role: prometheus_grafana
+      tags: prometheus_grafana
+

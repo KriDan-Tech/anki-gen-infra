@@ -1,0 +1,43 @@
+- name: Create prometheus\grafana  directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ metrics_dir }}"
+    - "{{ metrics_dir }}/prometheus"
+    - "{{ metrics_dir }}/grafana/provisioning"
+
+- name: Deploy prometheus\grafana docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ metrics_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "docker compose -f %s config --quiet"
+
+- name: Deploy prometheus config
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ metrics_dir }}/prometheus/prometheus.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy grafana provisioning config
+  ansible.builtin.template:
+    src: grafana_provisioning.yml.j2
+    dest: "{{ metrics_dir }}/grafana/provisioning/prometheus.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Start Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ metrics_dir }}"
+    state: present
+    pull: missing
+    recreate: always
