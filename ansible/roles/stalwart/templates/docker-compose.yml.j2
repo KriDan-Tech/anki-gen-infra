@@ -12,9 +12,13 @@ services:
       - "4190:4190"
       - "8080:8080"
     volumes:
-      - stalwart-etc:{{ stalwart_etc }}
-      - stalwart-data:{{ stalwart_data }}
-      - stalwart-logs:{{ stalwart_logs }}
+      - stalwart-etc:/etc/stalwart
+      - stalwart-data:/var/lib/stalwart
+      - /opt/lego/certificates:/certs:ro
+    networks:
+      default:
+        aliases:
+          - {{ stalwart_crt_domain }}
 
   roundcube:
     image: roundcube/roundcubemail:{{roundcube_version}}
@@ -32,15 +36,15 @@ services:
       ROUNDCUBEMAIL_SKIN: elastic
 
       # IMAP Stalwart
-      ROUNDCUBEMAIL_DEFAULT_HOST: "ssl://stalwart"
+      ROUNDCUBEMAIL_DEFAULT_HOST: "ssl://{{ stalwart_crt_domain }}"
       ROUNDCUBEMAIL_DEFAULT_PORT: 993
 
       # SMTP Stalwart
-      ROUNDCUBEMAIL_SMTP_SERVER: "ssl://stalwart"
+      ROUNDCUBEMAIL_SMTP_SERVER: "ssl://{{ stalwart_crt_domain }}"
       ROUNDCUBEMAIL_SMTP_PORT: 465
 
     volumes:
-      - roundcube-db:{{roundcube_data}}
+      - roundcube-db:/var/roundcube/db
 
 volumes:
   stalwart-etc:

@@ -1,10 +1,7 @@
 stalwart_image_version: "v1.0.3"
-stalwart_etc: "/etc/stalwart"
-stalwart_data: "/var/lib/stalwart"
-stalwart_logs: "/var/log/stalwart"
 
-stalwart_crt_domain: "192.168.0.117"
+stalwart_crt_domain: "mail.ecb.tonzer.ru"
 
 roundcube_version: "1.7.5-apache"
-roundcube_data: "/var/lib/roundcube/db"
+
 
