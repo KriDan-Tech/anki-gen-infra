@@ -41,6 +41,9 @@ docker compose up -d --build
 - Realm `anki-gen`: импорт из `auth-keycloak/realm-export.json` идёт только при первом создании realm;
   подробнее — `auth-keycloak/README.md`. Google: заполнить `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
   в `.env` (пока пустые — вход через Google не работает).
+- Для provisioning-клиента billing-admin Compose-файл в checkout укажите явно:
+  `--project-directory /path/to/dev-anki-gen --compose-file infra/docker-compose.yml`.
+  На целевом сервере по умолчанию используется `/srv/myapp/docker-compose.yml`.
 
 ## HTTPS и сертификат (TLS_MODE)
 
