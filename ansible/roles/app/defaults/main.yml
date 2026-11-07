@@ -1,4 +1,7 @@
 
+# Controller-side infra root, derived from this role location (override when needed).
+app_infra_root: "{{ role_path | dirname | dirname | dirname }}"
+
 app_dir: "/srv/myapp"
 app_compose_file: "docker-compose.yml"
 app_db_migrations_dir: "postgres"

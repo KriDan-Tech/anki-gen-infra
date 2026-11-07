@@ -6,13 +6,13 @@
 
 - name: Прочитать PUBLIC_HOST и настройки TLS из infra/.env
   ansible.builtin.set_fact:
-    app_public_host: "{{ lookup('ansible.builtin.ini', 'PUBLIC_HOST', file=(playbook_dir | dirname) ~ '/.env', type='properties') }}"
-    app_tls_mode: "{{ lookup('ansible.builtin.ini', 'TLS_MODE', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='selfsigned') }}"
-    app_acme_server: "{{ lookup('ansible.builtin.ini', 'ACME_SERVER', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='letsencrypt-staging') }}"
-    app_selectel_username: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_USERNAME', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
-    app_selectel_password: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_PASSWORD', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
-    app_selectel_account_id: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_ACCOUNT_ID', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
-    app_selectel_project_id: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_PROJECT_ID', file=(playbook_dir | dirname) ~ '/.env', type='properties', default='') }}"
+    app_public_host: "{{ lookup('ansible.builtin.ini', 'PUBLIC_HOST', file=app_infra_root ~ '/.env', type='properties') }}"
+    app_tls_mode: "{{ lookup('ansible.builtin.ini', 'TLS_MODE', file=app_infra_root ~ '/.env', type='properties', default='selfsigned') }}"
+    app_acme_server: "{{ lookup('ansible.builtin.ini', 'ACME_SERVER', file=app_infra_root ~ '/.env', type='properties', default='letsencrypt-staging') }}"
+    app_selectel_username: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_USERNAME', file=app_infra_root ~ '/.env', type='properties', default='') }}"
+    app_selectel_password: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_PASSWORD', file=app_infra_root ~ '/.env', type='properties', default='') }}"
+    app_selectel_account_id: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_ACCOUNT_ID', file=app_infra_root ~ '/.env', type='properties', default='') }}"
+    app_selectel_project_id: "{{ lookup('ansible.builtin.ini', 'SELECTELV2_PROJECT_ID', file=app_infra_root ~ '/.env', type='properties', default='') }}"
 
 # проверка до выпуска: в режиме letsencrypt нужен домен, сервер ACME и учётные данные Selectel
 - name: Проверить настройки TLS
@@ -165,6 +165,6 @@
 - name: Забрать tls.crt в infra/certs
   ansible.builtin.fetch:
     src: "{{ app_dir }}/{{ app_cert_selfsigned_dir }}/tls.crt"
-    dest: "{{ playbook_dir | dirname }}/certs/{{ inventory_hostname }}.crt"
+    dest: "{{ app_infra_root }}/certs/{{ inventory_hostname }}.crt"
     flat: true
   when: app_tls_mode == 'selfsigned'

@@ -34,7 +34,7 @@
 
 - name: Скопировать docker-compose.yml на ноду
   ansible.posix.synchronize:
-    src: "{{playbook_dir}}/../{{ app_compose_file }}"
+    src: "{{ app_infra_root }}/{{ app_compose_file }}"
     dest: "{{ app_dir }}/{{ app_compose_file }}"
     delete: false
     rsync_opts:
@@ -42,7 +42,7 @@
 
 - name: Скопировать конфиг proxy на ноду
   ansible.posix.synchronize:
-    src: "{{ playbook_dir }}/../{{ app_proxy_dir }}/"
+    src: "{{ app_infra_root }}/{{ app_proxy_dir }}/"
     dest: "{{ app_dir }}/{{ app_proxy_dir }}/"
     delete: false
     rsync_opts:
@@ -51,7 +51,7 @@
 
 - name: Скопировать скрипты acme на ноду
   ansible.posix.synchronize:
-    src: "{{ playbook_dir }}/../{{ app_acme_dir }}/"
+    src: "{{ app_infra_root }}/{{ app_acme_dir }}/"
     dest: "{{ app_dir }}/{{ app_acme_dir }}/"
     delete: false
     rsync_opts:
@@ -60,7 +60,7 @@
 
 - name: Скопировать init-скрипты Postgres на ноду
   ansible.posix.synchronize:
-    src: "{{playbook_dir}}/../{{app_db_migrations_dir}}/"
+    src: "{{ app_infra_root }}/{{app_db_migrations_dir}}/"
     dest: "{{ app_dir }}/{{app_db_migrations_dir}}/"
     delete: false
     rsync_opts:
@@ -68,7 +68,7 @@
 
 - name: Отправить .env с секретами
   ansible.builtin.copy:
-    src: "{{ playbook_dir | dirname }}/.env"
+    src: "{{ app_infra_root }}/.env"
     dest: "{{ app_dir }}/.env"
     owner: deploy
     group: deploy
