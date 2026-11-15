@@ -122,11 +122,16 @@ services:
     build:
       context: ./anki-gen-source-service
     container_name: anki-source-service
+    # VERIFIED Compose 5.7.0 config -q accepts cpus (Docker 29.9.3), Main's VM evidence:
+    # /home/srvadmin/.openclaw/workspace/reports/task050-verification/api-evidence.md
+    cpus: ${SOURCE_CPU_BUDGET:-10}
     restart: unless-stopped
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
+      PADDLE_CPU_THREADS: ${PADDLE_CPU_THREADS:-10}
+      OCR_MAX_CONCURRENCY: ${OCR_MAX_CONCURRENCY:-1}
       SOURCE_DB_NAME: source_sandbox_db
       SOURCE_DB_USER: ${SOURCE_DB_USER}
       SOURCE_DB_PASSWORD: ${SOURCE_DB_PASSWORD}
@@ -152,6 +157,9 @@ services:
     build:
       context: ./anki-gen-vocab-extractor
     container_name: anki-vocab-extractor
+    # VERIFIED Compose 5.7.0 config -q accepts cpus (Docker 29.9.3), Main's VM evidence:
+    # /home/srvadmin/.openclaw/workspace/reports/task050-verification/api-evidence.md
+    cpus: ${EXTRACTOR_CPU_BUDGET:-4}
     restart: unless-stopped
     environment:
       SERVER_PORT: 8082
@@ -174,6 +182,8 @@ services:
       AI_RESPONSE_FORMAT: ${AI_RESPONSE_FORMAT:-json_schema}
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-}
       AI_MAX_PAGES_PER_EXTRACTION: ${AI_MAX_PAGES_PER_EXTRACTION:-200}
+      AI_EXECUTOR_THREADS: ${AI_EXECUTOR_THREADS:-4}
+      EXTRACTION_EXECUTOR_THREADS: ${EXTRACTION_EXECUTOR_THREADS:-2}
       # блоки книги и source.parsed.v1 (этап 3)
       SOURCE_SERVICE_URL: http://source-service:8081
       BILLING_SERVICE_URL: http://billing-service:8085
