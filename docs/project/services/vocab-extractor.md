@@ -6,11 +6,34 @@
 ## Наблюдаемая реализация (статический срез 2026-11-16)
 Осмотрены `vocab-extractor/src/main/java/com/ankigen/vocabextractor/detect/ExtractionRunner.java`, `detect/HeaderProcessingPipeline.java`, `detect/SectionPlanner.java`, `billing/UsageCoordinator.java`, `extraction/PaidStartService.java`, ресурсы Flyway включая `V5__execution_progress.sql` (2026-11-16). Локальная ветка `feat/source-durable-progress-2026-11-16` @bcf8149 с незакоммиченными Task054 изменениями. `vocab-extractor/pom.xml` pin-ит Spring Boot 4.0.0 (Java 21 указан в README); Spring AI version property берётся из того же manifest.
 
+Task058 (статически осмотрено 2026-11-16): `detect/HeadingBatchReconciler.java`,
+`detect/HeaderProcessingPipeline.java` и `detect/HeadingSectionPlanner.java`
+реализуют page-local abstention после полной согласованной bounded reconciliation.
+Несколько независимых retained openings на физической странице исключают все её
+заголовки; явные same-opening fragments сохраняются. Integrity errors и конфликт
+partition decisions остаются fatal. Существующий full-state CAS атомарно сохраняет
+`headingAssemblyPolicy=page-abstention.v1`, `headingAbstentions` с причиной
+`MULTIPLE_RETAINED_OPENINGS`/proposal IDs, normalized selections и
+`HEADINGS_RESOLVED`; accepted input/catalogue/results/prompts/schemas/digests не
+переписываются. Recovery проверяет policy, canonical existing physical pages и
+отсутствие confirmed headings на abstained pages. Маркеры сохраняются до
+`WORDS_READY`/`PLAN_READY`, но не входят в source word request.
+
+Abstained page, включая unselected context, обрывает наследование предыдущего
+тега с начала страницы. Стабильная untagged section
+`header-vnext:abstention:<physicalPage>` действует до exact occurrence следующего
+confirmed opening; preamble до него тоже без тега. Для context-only страниц не
+выдумываются заголовок или OCR offsets. Marker-free resolved states, frozen word
+requests и готовые планы не мигрируются; CLOSED операции не открываются заново.
+Это наблюдение исходников и synthetic regression sources, не runtime/deployed
+подтверждение; task058 сборки/тесты в coding lane не запускались. Подробнее:
+[header implementation](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/header-vnext-implementation.md).
+
 ## Утверждённая цель
 После полного извлечения страницы выбирать верхние слова для AI-заголовков, затем выпускать Draft карточки без этапа предварительного подтверждения. Найденный заголовок переносится до нового; сомнительный/отсутствующий не выдумывать; до первого найденного заголовка — без тега. Номер+название (например `12_Laboratory`) должны сохраняться. Дубликаты проверяются; несколько header tags допустимы; значения и формы go/went/gone сохраняют разные карточки. Ошибки слов/страниц логируются и пропускаются без потери успешного результата.
 
 ## Разрывы и неизвестное
-Observed pipeline имеет heading-first порядок и выявленные gaps по dedup; `autoConfirm=false` предоставляет review path, не совпадающий с целью immediate Draft. Нынешний finish может завершиться ошибкой при failed/pending pages до term finalization, поэтому нельзя утверждать full partial-result delivery. Отсутствие заголовка и его safe degradation не утверждать без конкретного подтверждения источником. Финансовая оркестрация сейчас не равна утверждённым start-charge/refund semantics. Критический-error классификатор и частичная финансовая развязка не определены.
+Observed pipeline имеет heading-first порядок и выявленные gaps по dedup; `autoConfirm=false` предоставляет review path, не совпадающий с целью immediate Draft. Нынешний finish может завершиться ошибкой при failed/pending pages до term finalization, поэтому нельзя утверждать full partial-result delivery. Финансовая оркестрация сейчас не равна утверждённым start-charge/refund semantics. Критический-error классификатор и частичная финансовая развязка не определены.
 
 ## Практическая навигация (осмотр 2026-11-16)
 [PaidStartService](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/extraction/PaidStartService.java) содержит source/word-list start, cancel и retry-waiting-credits entrypoints; [ExtractionRunner](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/detect/ExtractionRunner.java) запускает extraction и heartbeat; [HeaderProcessingPipeline](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/detect/HeaderProcessingPipeline.java) связывает source blocks с section plan и выделяет pending/occurrence-conflict исходы. HTTP/event contracts сверять в README и focused docs.
