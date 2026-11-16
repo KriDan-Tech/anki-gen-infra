@@ -1,0 +1,18 @@
+# vocab-extractor
+
+## Назначение и интерфейсы
+Планирование кандидатов, AI-разметка заголовков/слов, долговечная работа и передача терминов card-builder. Смотрите focused документы по paid-start и headers, API/AMQP — в `vocab-extractor/README.md`.
+
+## Наблюдаемая реализация (статический срез 2026-11-16)
+Осмотрены `vocab-extractor/src/main/java/com/ankigen/vocabextractor/detect/ExtractionRunner.java`, `detect/HeaderProcessingPipeline.java`, `detect/SectionPlanner.java`, `billing/UsageCoordinator.java`, `extraction/PaidStartService.java`, ресурсы Flyway включая `V5__execution_progress.sql` (2026-11-16). Локальная ветка `feat/source-durable-progress-2026-11-16` @bcf8149 с незакоммиченными Task054 изменениями. `vocab-extractor/pom.xml` pin-ит Spring Boot 4.0.0 (Java 21 указан в README); Spring AI version property берётся из того же manifest.
+
+## Утверждённая цель
+После полного извлечения страницы выбирать верхние слова для AI-заголовков, затем выпускать Draft карточки без этапа предварительного подтверждения. Найденный заголовок переносится до нового; сомнительный/отсутствующий не выдумывать; до первого найденного заголовка — без тега. Номер+название (например `12_Laboratory`) должны сохраняться. Дубликаты проверяются; несколько header tags допустимы; значения и формы go/went/gone сохраняют разные карточки. Ошибки слов/страниц логируются и пропускаются без потери успешного результата.
+
+## Разрывы и неизвестное
+Observed pipeline имеет heading-first порядок и выявленные gaps по dedup; `autoConfirm=false` предоставляет review path, не совпадающий с целью immediate Draft. Нынешний finish может завершиться ошибкой при failed/pending pages до term finalization, поэтому нельзя утверждать full partial-result delivery. Отсутствие заголовка и его safe degradation не утверждать без конкретного подтверждения источником. Финансовая оркестрация сейчас не равна утверждённым start-charge/refund semantics. Критический-error классификатор и частичная финансовая развязка не определены.
+
+## Практическая навигация (осмотр 2026-11-16)
+[PaidStartService](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/extraction/PaidStartService.java) содержит source/word-list start, cancel и retry-waiting-credits entrypoints; [ExtractionRunner](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/detect/ExtractionRunner.java) запускает extraction и heartbeat; [HeaderProcessingPipeline](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/detect/HeaderProcessingPipeline.java) связывает source blocks с section plan и выделяет pending/occurrence-conflict исходы. HTTP/event contracts сверять в README и focused docs.
+
+Настройки/версии: [README](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/README.md), [pom.xml](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/pom.xml), [V5 progress migration](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/resources/db/migration/V5__execution_progress.sql). Focused: [paid operation contract](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/paid-operation-contract.md), [header implementation](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/header-vnext-implementation.md), [API evidence](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/header-vnext-api-evidence.md), [billing integration](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/billing-usage-integration.md).

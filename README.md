@@ -1,5 +1,7 @@
 # infra
 
+> Каноническая polyrepo-документация: [docs/index](https://github.com/KriDan-Tech/anki-gen-infra/blob/main/docs/project/README.md) · [infra — ответственность, target и gaps](https://github.com/KriDan-Tech/anki-gen-infra/blob/main/docs/project/services/infra.md). Опубликованное зеркало поддерживается в infra; source-of-truth реализации — исходники этого сервиса.
+
 Инфраструктура и запуск всего проекта dev-anki-gen. Своего кода здесь нет — только
 `docker-compose.yml`, init-скрипты Postgres и переменные окружения (полирепо, см. STRUCTURE.md).
 Сервисы собираются из соседних репозиториев через `build.context: ../<сервис>`.

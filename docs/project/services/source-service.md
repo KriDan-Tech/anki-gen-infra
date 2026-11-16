@@ -1,0 +1,18 @@
+# source-service
+
+## Назначение и владение
+Приём PDF, физические страницы, текст/геометрия, OCR и долговечное хранение входа/результатов до разрешённой стадии удаления. Vocab-extractor — потребитель извлечённых страниц. Подробности API — в `source-service/README.md`; focused OCR layout/API evidence — в документах сервиса.
+
+## Наблюдаемая реализация (статический срез 2026-11-16)
+Осмотрены `source-service/app/routes.py`, `services.py`, `pdf_parser.py`, `header_candidates.py`, `header_words.py`, `word_jobs.py`, `checkpoints.py`, `durable_files.py`, `pdf_geometry.py`, `source-service/alembic/versions/` и `source-service/pyproject.toml` (2026-11-16). `header_candidates.py` описывает strict displayed upper-quarter crop, без full-page fallback; `routes.py` принимает pageFrom/pageTo; checkpoint/durable code содержит fenced state и pending-commit marker. Для OCR/runtime dependency versions source-of-truth — pin manifest; PaddleOCR 3.7.0 и PaddlePaddle 3.2.2 указаны в зафиксированном источнике/решении 2026-11-16. Локальная ветка на момент осмотра `feat/source-durable-progress-2026-11-16` @4484125 с незакоммиченными Task054 файлами; root polyrepo не имеет пригодной общей git-истории.
+
+## Утверждённая цель
+Обрабатывать полностью каждую выбранную страницу без cropping текста; после извлечения выбирать верхние слова и передавать их на определение заголовков AI; затем карточки учитывают заголовки. EN/JA, цвет допустим, grayscale optional. Ошибки отдельных страниц/слов логировать, пропускать и сохранять остальной результат; scan не отклонять заранее как неподдерживаемый. Границы выбора страниц обязательны.
+
+## Разрывы и неизвестное
+Текущая vNext-логика строгого crop верхней четверти для кандидатов отличается от цели full-page extraction; не путать её с legacy parsing. Документация OCR-LAYOUT/API и реализация описывают текущие слои, но статический код не доказывает OCR-качество. Без evidence не утверждать безопасный fallback для отсутствующего заголовка. Task054 durable/checkpoint изменения в рабочем дереве — не HEAD и не runtime proof. Ошибки geometry/occurrence и сохранение partial output требуют приёмки. Удаление исходников при завершении проверять по реальному lifecycle, не обещать по общему README.
+
+## Практическая навигация (осмотр 2026-11-16)
+[Upload entrypoint](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/app/routes.py) принимает multipart PDF, EN/JA, tags и `pageFrom/pageTo`, создаёт source и возвращает 202; там же list/get и internal parsed-block handoff для extractor. [services.py](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/app/services.py) координирует parse lifecycle, [checkpoints.py](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/app/checkpoints.py) — parse/word identity and checkpoint invariants, [durable_files.py](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/app/durable_files.py) — публикацию/проверку файла и неопределённый commit marker. [header_candidates.py](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/app/header_candidates.py) описывает vNext strict upper-quarter OCR crop без full-page fallback.
+
+Настройки/версии: [README](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/README.md), [pyproject.toml](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/pyproject.toml). Контрактные детали: [API verification](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/docs/api-verification.md), [header vNext evidence](https://github.com/KriDan-Tech/anki-gen-source-service/blob/main/docs/header-vnext-api-evidence.md).
