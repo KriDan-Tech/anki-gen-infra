@@ -33,3 +33,70 @@
 В новой реализации используется отдельный замороженный профиль `heading-batches.v2`; ранее сохранённые планы без layout marker и профили v1 должны оставаться читаемыми без миграции их identity/digest. Для новых принятых запусков явный номер урока/юнита, включая `第N課`, является первичным свидетельством; повтор того же номера рассматривается как running marker/продолжение. Ненумерованное начало оценивается только по верхнему положению, относительному размеру строки и разделению вместе. Используется лишь существующая верхняя четверть; body/соседние страницы, sample слов, TOC и тематический сдвиг не добавляются.
 
 Это описание требований и статического изменения; оно не подтверждает runtime качество, OCR результат или production rollout. Регрессионные источники добавлены, но не запускались.
+
+## Task060 — уточнение цели и статический срез 2026-11-17
+
+**Цель:** один grounded heading не получает независимые противоречащие semantic
+votes из разных occurrence partitions. При остающейся семантической неопределённости
+пропустить сомнительный заголовок/всю физическую страницу, если спор затрагивает
+opening или фрагмент названия; продолжить извлечение слов без выдуманного или
+унаследованного старого тега. Не выбирать большинство, первый/последний ответ и
+не запускать дополнительное adjudication inference.
+
+**Наблюдаемые исходники:** новые acceptance выбирают `heading-batches.v3`;
+`HeadingSingleDecisionPlanner` создаёт не более одного semantic request на
+`Grounded.id` (либо локальный `CONTEXT_UNREPRESENTABLE`). Полный owned literal
+не укорачивается. Все substring occurrences остаются адресуемым индексом с digest,
+не отдельными votes; в запросе только same-page upper-candidate context/layout.
+`HeadingNumberEvidence` различает Unit/Lesson N, 第N課, Arabic/full-width digits
+и ограниченную японскую грамматику; 7 внутри 17/даты/слова не становится номером 7.
+INN не исправляется в UNIT. Unsupported notation не означает автоматический reject.
+Изолированная цифра требует подтверждающих same-page title/layout; без номера
+нужна совокупность position, relative size и separation, а не topic/body/TOC.
+
+Политика `page-abstention.v2` сохраняет причины/ownership вместе с normalized
+selections и `HEADINGS_RESOLVED` существующим generation-fenced full-state CAS.
+Неопределённая context-only/unselected страница тоже останавливает старый тег;
+sparse selected pages остаются без тега до exact следующего independent confirmed
+opening. Повтор активного или спорного номера как running marker не снимает barrier.
+Невалидные JSON/duplicate keys, ownership, digest/range corruption не превращаются
+в semantic skip. Provider/transport pending остаётся pending.
+
+**Legacy и неизвестное:** frozen v1/v2 requests/settings/prompts/digests и уже
+resolved marker-free state/wordRequest/WORDS_READY/PLAN_READY не мигрируются.
+Pending legacy schedule выполняется полностью; валидное retain/continuation
+disagreement теперь даёт `SEMANTIC_DECISION_CONFLICT`, не потерю всех слов.
+Цена такого frozen schedule не уменьшается. CLOSED финансовые операции не
+переоткрываются. Это source-level изменения и regression sources, не runtime,
+OCR/provider accuracy, production rollout или гарантия полного продуктового пути.
+Ничего не запускалось; будущая авторизованная проверка — только ssh docker-vm
+(external-docker), не OpenClaw host.
+
+
+### Task060 review clarification — static source inspection 2026-11-17
+
+Номер определяется по тому же native-endpoint-completed view, который затем
+используется при normalization; исходные Grounded/literal/request evidence остаются
+отдельно. Partial [4,5) внутри native Unit7 после uncertainty barrier не может
+превратиться в новое opening при последующем расширении endpoints. Possible numbers
+на uncertain странице берутся только из retained или uncertainty-bearing proposals:
+definitive reject Unit8 рядом с uncertain Maybe не подавляет independent confirmed
+Unit8 следующей страницы. Regression sources добавлены, не запускались.
+
+Legacy golden fixtures — независимая статическая проекция Git baseline
+835606c7abab42f0102c4699421eb6753cb72d08, с pinned SHA/provenance; это не результат
+current code и не исторический runtime capture. Полная cross-process replay
+приёмка остаётся unverified; детали Map.of ordering указаны в fixture README.
+
+
+### Task060: fragmented number coverage — source-only, 2026-11-17
+
+Identity учитывает совокупность ordered ranges одного candidate/opening: Unit 8
+в [0,4) и [5,6) сохраняет номер8, если пропущен только original whitespace.
+Аналогично Lesson N и 第N課. На uncertain странице ranges объединяются только
+в explicit eligible dependency chain после существующего native completion;
+definitive rejects исключаются/обрывают цепочку, independent non-continuations
+не объединяются. Поэтому fragmented confirmed/disputed marker не теряет identity
+и следующий running Unit8 не снимает barrier. Пропуски non-whitespace и
+cross-candidate склейка запрещены. Исходное evidence не переписывается.
+Focused regression sources добавлены; runtime/accuracy не проверены, запусков не было.
