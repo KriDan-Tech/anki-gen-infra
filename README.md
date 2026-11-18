@@ -47,6 +47,36 @@ docker compose up -d --build
   `--project-directory /path/to/dev-anki-gen --compose-file infra/docker-compose.yml`.
   На целевом сервере по умолчанию используется `/srv/myapp/docker-compose.yml`.
 
+## SMTP first-import (opt-in)
+
+Default Compose и Ansible сохраняют исходный flow: Keycloak image импортирует baked-in
+auth-keycloak/realm-export.json только при первом создании realm. Для opt-in first import
+скрипт auth-keycloak/provision-smtp.py готовит защищённый runtime export, а отдельный
+infra/docker-compose.smtp-import.yml монтирует его поверх /opt/keycloak/data/import.
+Ни один из файлов не включается автоматически. Точные команды для checkout и /srv/myapp,
+правила ownership, Mailpit fallback, idempotency, неизменность существующего realm и
+непроверенная registration UI sequence описаны в auth-keycloak/README.md.
+
+Из checkout общий порядок (для каждого последующего Compose up, пока требуется mount,
+передавать оба Compose файла и KEYCLOAK_IMPORT_DIRECTORY):
+
+~~~bash
+cd /home/srvadmin/projects/dev-anki-gen
+sudo install -d -o root -g 0 -m 0750 infra/keycloak-import
+sudo python3 auth-keycloak/provision-smtp.py \
+  --prepare-import --project-directory "$PWD" \
+  --compose-file infra/docker-compose.yml --env-file infra/.env \
+  --output-directory "$PWD/infra/keycloak-import"
+KEYCLOAK_IMPORT_DIRECTORY="$PWD/infra/keycloak-import" docker compose \
+  -f infra/docker-compose.yml -f infra/docker-compose.smtp-import.yml \
+  up -d keycloak
+~~~
+
+Первый импорт не меняет существующий realm; для повторного импорта рассматривайте только
+отдельную базу keycloak_db и её backup/recovery-процедуру. Не удаляйте shared PostgreSQL
+volume и не используйте docker compose down -v. Подготовка не вызывает SMTP и не отправляет
+письмо. Runtime/deployed состояние здесь не проверялось.
+
 ## HTTPS и сертификат (TLS_MODE)
 
 Вход — `https://PUBLIC_HOST/` через proxy (443; 80 → 301). Nginx читает активную пару `certs/tls.crt` + `certs/tls.key`.

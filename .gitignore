@@ -26,3 +26,6 @@ crash.log
 
 # состояние lego (ключ аккаунта ACME, сертификаты LE) — только на ноде
 /acme-data/
+
+# Generated Keycloak first-import realm may contain SMTP credentials
+/keycloak-import/
