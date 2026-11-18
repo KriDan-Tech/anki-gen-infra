@@ -1,5 +1,39 @@
 # vocab-extractor
 
+## Task064 — новые PDF только book/page (2026-11-18)
+
+**Решение владельца:** временно без lesson/header detection для новых PDF.
+Текущая цель — полный текст выбранных физических страниц, теги `page::N`
+и существующий deck `book::<slug>` (включая untitled). Все утверждения ниже
+про новые heading acceptance исторические для header-processing-vNext,
+а не default новых загрузок. Ранее accepted quotes/jobs, включая ещё не derived,
+не мигрируются. Для page-only исторический PDF нужно загрузить заново.
+
+**Статически реализовано:** `detect/PageOnlyPdf.java` задаёт frozen
+`page-only.v1` / `physical-pages.v1`; `extraction/StagedPdf.java` выбирает exact
+source version, сохраняя `staged-pdf.v1` и `pdf-whole-operation.v1`.
+`PaidPreviewService`, `PaidStartService`, `billing/StagedSourceReconciler`
+замораживают и проверяют профиль источника; отсутствие нового поля в historical
+canonical означает прежний HeaderVNext. `billing/UsageCoordinator.java` до heading
+ветки один раз сохраняет source digest/settings/pagePlan в paid_pdf_execution,
+после чего проверяет immutable recovery без live model/config. Quote не меняется.
+
+`detect/Preprocessor.java`, `ExtractionRunner.java`, `DetectService.java`
+сохраняют full nonblank block ranges без heading/repeated-edge/page-number
+фильтров только этого профиля, обходят HeaderVNext/HeaderProcessingPipeline.
+V5 singleton ownership, bounded workers, application fences и physical-page
+completion не меняются. Термины получают authoritative row page; inferred
+heading/candidate/custom source tags игнорируются только здесь. Word/reading
+duplicates объединяют page tags в возрастающем порядке без лимита 10, сохраняя
+первый scalar page/context. Card builder/deck bookTag и existing-card skip не менялись.
+
+**Граница:** Java21/Boot4.0.0 manifest проверен; Spring7.0.1/Jackson3.0.2 APIs —
+exact cached sources (см. `vocab-extractor/docs/page-only-contract.md`).
+Reservation-before-activation, cancel/retry/terminal/CLOSED finality и billing
+не менялись. Regression sources написаны, НЕ запускались; static source inspection
+не подтверждает runtime/AI accuracy/deploy. Будущие исполнения только docker-vm.
+
+
 ## Назначение и интерфейсы
 Планирование кандидатов, AI-разметка заголовков/слов, долговечная работа и передача терминов card-builder. Смотрите focused документы по paid-start и headers, API/AMQP — в `vocab-extractor/README.md`.
 
@@ -60,7 +94,7 @@ RECEIVED replay локален, existing authorized retry limits сохране�
 [single-segment vocabulary](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/docs/single-segment-vocabulary.md).
 Статический осмотр не подтверждает provider accuracy, production replay или deploy.
 
-## Утверждённая цель
+## Историческая heading-цель (только frozen header profiles; superseded для новых PDF Task064)
 После полного извлечения страницы выбирать верхние слова для AI-заголовков, затем выпускать Draft карточки без этапа предварительного подтверждения. Найденный заголовок переносится до нового; сомнительный/отсутствующий не выдумывать; до первого найденного заголовка — без тега. Номер+название (например `12_Laboratory`) должны сохраняться. Дубликаты проверяются; несколько header tags допустимы; значения и формы go/went/gone сохраняют разные карточки. Ошибки слов/страниц логируются и пропускаются без потери успешного результата.
 
 ## Разрывы и неизвестное
@@ -259,3 +293,20 @@ Docker image `task063-vocab:r2` успешно собран на том же и�
 о незапущенных тестах для проверенного текущего дерева; не подтверждает качество
 реального провайдера, Hibernate persistence context, production replay или deploy.
 Источник: vocab-extractor/docs/task063-review-verification.md, final VM acceptance.
+
+## Проверка Task064 — 2026-11-18
+
+После первоначального source-only среза выполнены проверки на `docker-vm`
+(`external-docker`): source-service **225 PASS +25 subtests**, 3 opt-in private
+OCR tests skipped; frontend **145/145 PASS**; vocab-extractor **300/300 PASS**,
+без failures/errors/skips в Java/frontend. Все 6 новых Python и 8 новых Java
+page-only проверок исполнились. Миграции source на чистой БД и upgrade с0005
+(включая downgrade/повторный upgrade) прошли. Очистка временных контейнеров и
+сетей подтверждена. Все три штатных Dockerfile собрали конечные образы.
+
+Это regression/build verification, не deployed или live OCR/AI/E2E acceptance.
+Реальные приватные OCR PDF и платные provider calls не выполнялись. Код и тесты
+после проверенного снимка не менялись; затем обновлена только документация
+результатов. Исторические frozen profiles и `lessons-detect` сохранены.
+
+Подробности: [отчёт](../../task064-verification.md).
