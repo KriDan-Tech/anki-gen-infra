@@ -57,8 +57,9 @@ infra/docker-compose.smtp-import.yml монтирует его поверх /opt
 правила ownership, Mailpit fallback, idempotency, неизменность существующего realm и
 непроверенная registration UI sequence описаны в auth-keycloak/README.md.
 
-Из checkout общий порядок (для каждого последующего Compose up, пока требуется mount,
-передавать оба Compose файла и KEYCLOAK_IMPORT_DIRECTORY):
+Подготовить runtime export можно из checkout; это не является поддерживаемым Compose startup,
+поскольку build contexts требуют развёрнутую структуру `/srv/myapp`. После подготовки передайте
+каталог `infra/keycloak-import/` на сервер в `/srv/myapp/keycloak-import/`.
 
 ~~~bash
 cd /home/srvadmin/projects/dev-anki-gen
@@ -67,8 +68,17 @@ sudo python3 auth-keycloak/provision-smtp.py \
   --prepare-import --project-directory "$PWD" \
   --compose-file infra/docker-compose.yml --env-file infra/.env \
   --output-directory "$PWD/infra/keycloak-import"
-KEYCLOAK_IMPORT_DIRECTORY="$PWD/infra/keycloak-import" docker compose \
-  -f infra/docker-compose.yml -f infra/docker-compose.smtp-import.yml \
+~~~
+
+На сервере после доставки подготовленного каталога, Compose override и остальных build contexts
+в `/srv/myapp`, startup запускается в развёрнутой структуре (и последующие Compose up, пока нужен
+mount, также должны передавать оба Compose файла и эту переменную):
+
+~~~bash
+cd /srv/myapp
+KEYCLOAK_IMPORT_DIRECTORY=/srv/myapp/keycloak-import docker compose \
+  -f /srv/myapp/docker-compose.yml \
+  -f /srv/myapp/docker-compose.smtp-import.yml \
   up -d keycloak
 ~~~
 
