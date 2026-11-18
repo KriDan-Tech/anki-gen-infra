@@ -27,7 +27,38 @@ confirmed opening; preamble до него тоже без тега. Для conte
 requests и готовые планы не мигрируются; CLOSED операции не открываются заново.
 Это наблюдение исходников и synthetic regression sources, не runtime/deployed
 подтверждение; task058 сборки/тесты в coding lane не запускались. Подробнее:
-[header implementation](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/header-vnext-implementation.md).
+[header implementation](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/docs/header-vnext-implementation.md).
+
+## Task063 — один vocabulary request на сегмент (source review 2026-11-17)
+
+Новые acceptance в `detect/HeaderVNext.java`,
+`detect/ExtractionPipelineSettings.java` и `extraction/StagedPdf.java`
+используют `detect-vocab-v5-single-segment`. `detect/SegmentPlanner.java`
+создаёт один durable request на один PreparedSegment; `detect/VocabularyProtocol.java`
+проверяет singleton membership и положительный billing attempt token.
+`detect/DetectService.java` передаёт только marked text этого сегмента и правила,
+без серверных page/segment/section IDs. Закрытый v5 ответ содержит только
+`items` с word/reading/readingSource/context; `items:[]` — валидный пустой результат.
+`detect/SegmentDetectResponse.java` отклоняет лишние поля, duplicate keys и trailing
+JSON; сервер связывает слова с сохранёнными page/segment/tag, не исправляя envelope.
+
+`detect/ExtractionRunner.java` запускает не более четырёх workers на extraction,
+сохранённые groups распределяются атомарно через общий AI executor.
+Run fencing останавливает новые dispatch; уже выданные HTTP calls не отменяются.
+Применение результата, application fence и existing physical-page settlement
+остаются в прежней транзакции; страница завершается после всех её сегментов.
+Failed/blocked segment не останавливает независимую работу siblings.
+Это не меняет существующий gap partial-result delivery в finish.
+
+Явно принятый v4 профиль и сохранённые requests/prompts/options/schema читаются
+без миграции; `billing/UsageCoordinator.java` сохраняет принятый vocabulary profile
+при выводе staged execution settings. UNKNOWN/IN_FLIGHT остаются blocked,
+RECEIVED replay локален, existing authorized retry limits сохранены.
+«Один запрос» означает один logical durable request, а не запрет retry этого request.
+Нет изменений splitter/header identities, финансовой политики или dependencies.
+Подробный контракт и границы доказательств:
+[single-segment vocabulary](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/docs/single-segment-vocabulary.md).
+Статический осмотр не подтверждает provider accuracy, production replay или deploy.
 
 ## Утверждённая цель
 После полного извлечения страницы выбирать верхние слова для AI-заголовков, затем выпускать Draft карточки без этапа предварительного подтверждения. Найденный заголовок переносится до нового; сомнительный/отсутствующий не выдумывать; до первого найденного заголовка — без тега. Номер+название (например `12_Laboratory`) должны сохраняться. Дубликаты проверяются; несколько header tags допустимы; значения и формы go/went/gone сохраняют разные карточки. Ошибки слов/страниц логируются и пропускаются без потери успешного результата.
@@ -36,15 +67,15 @@ requests и готовые планы не мигрируются; CLOSED опе
 Observed pipeline имеет heading-first порядок и выявленные gaps по dedup; `autoConfirm=false` предоставляет review path, не совпадающий с целью immediate Draft. Нынешний finish может завершиться ошибкой при failed/pending pages до term finalization, поэтому нельзя утверждать full partial-result delivery. Финансовая оркестрация сейчас не равна утверждённым start-charge/refund semantics. Критический-error классификатор и частичная финансовая развязка не определены.
 
 ## Практическая навигация (осмотр 2026-11-16)
-[PaidStartService](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/extraction/PaidStartService.java) содержит source/word-list start, cancel и retry-waiting-credits entrypoints; [ExtractionRunner](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/detect/ExtractionRunner.java) запускает extraction и heartbeat; [HeaderProcessingPipeline](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/java/com/ankigen/vocabextractor/detect/HeaderProcessingPipeline.java) связывает source blocks с section plan и выделяет pending/occurrence-conflict исходы. HTTP/event contracts сверять в README и focused docs.
+[PaidStartService](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/src/main/java/com/ankigen/vocabextractor/extraction/PaidStartService.java) содержит source/word-list start, cancel и retry-waiting-credits entrypoints; [ExtractionRunner](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/src/main/java/com/ankigen/vocabextractor/detect/ExtractionRunner.java) запускает extraction и heartbeat; [HeaderProcessingPipeline](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/src/main/java/com/ankigen/vocabextractor/detect/HeaderProcessingPipeline.java) связывает source blocks с section plan и выделяет pending/occurrence-conflict исходы. HTTP/event contracts сверять в README и focused docs.
+
+Настройки/версии: [README](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/README.md), [pom.xml](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/pom.xml), [V5 progress migration](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/src/main/resources/db/migration/V5__execution_progress.sql). Focused: [paid operation contract](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/docs/paid-operation-contract.md), [header implementation](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/docs/header-vnext-implementation.md), [API evidence](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/docs/header-vnext-api-evidence.md), [billing integration](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/feat/task059-header-layout-evidence/docs/billing-usage-integration.md).
 
 ## Task059: versioned layout-assisted heading proposal
 
 Для новых acceptance используется профиль `heading-batches.v2`; frozen v1/v2 профиль проверяется по версии плана при replay. V2 передаёт компактную геометрию только для строк в transmitted ranges (с исходными candidate-relative offsets и видимым пересечением), без дублирования текста/слов внутри layout DTO. Native typography указывается только при наличии, OCR size estimate не выдаётся за PDF typography. Сначала учитывается явный Unit N/`第N課`; одинаковый повторный номер — running marker. Ненумерованное открытие требует совместно верхнего положения, относительного размера и separation. TOC/topic shift, иерархия и body/соседние страницы не являются источником. Вызовы proposal/reconciliation считаются с обогащённым prompt в существующих лимитах; overflow приводит к split или явной ошибке, не усечению.
 
 Это source-level описание, не подтверждение runtime accuracy/provider поведения. Regression test sources добавлены и не запускались.
-
-Настройки/версии: [README](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/README.md), [pom.xml](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/pom.xml), [V5 progress migration](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/src/main/resources/db/migration/V5__execution_progress.sql). Focused: [paid operation contract](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/paid-operation-contract.md), [header implementation](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/header-vnext-implementation.md), [API evidence](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/header-vnext-api-evidence.md), [billing integration](https://github.com/KriDan-Tech/anki-gen-vocab-extractor/blob/main/docs/billing-usage-integration.md).
 
 ## Task060 — single semantic decision / nonfatal uncertainty (source review 2026-11-17)
 
@@ -181,3 +212,50 @@ test sources сохранены; tests/builds/compiler/inference/provider/contai
 только docker-vm/external-docker, не host. Узкий контракт и exact-version API
 evidence — docs/header-vnext-implementation.md и docs/header-vnext-api-evidence.md
 сервисного репозитория.
+
+
+## Task062 — заголовок первого этапа без повторного подтверждения (source review 2026-11-17)
+
+**Наблюдаемая реализация:** новые acceptance в `detect/HeaderVNext.java` и
+`extraction/StagedPdf.java` выбирают planner `confirmed-page-headings.v2`.
+`detect/HeadingSectionPlanner.java` включает confirmed opening с начала физической
+страницы независимо от occurrence masks основного OCR. Тег применяется и к тексту
+до найденного фрагмента заголовка; context-only/пустые страницы не требуют выдуманных
+OCR offsets. Uncertainty barriers сохраняются до следующего independent confirmed
+opening, для v2 — с начала его страницы. Это supersedes только прежнее требование
+exact occurrence для перехода в новый раздел, не семантические правила Task060/061.
+
+`detect/HeadingWordExclusion.java` использует masks только для исключения заголовка
+из слов: unique exact spans или консервативные complete-native-word совпадения с
+same-page canonical geometry и уникальным владением. Absent/ambiguous совпадения не
+отменяют confirmed heading; недостающие символы не восстанавливаются. Неопознаваемые
+фрагменты могут остаться во входе лексики. Corrupt identities/ranges и contradictory
+exact masks остаются integrity errors. Исходные OCR snapshots не переписываются.
+
+`detect/HeaderProcessingPipeline.java` передаёт frozen planner/evidence во все
+пути сборки; PLAN_READY возвращает сохранённые source/plan с проверкой версии.
+`billing/UsageCoordinator.java` сохраняет accepted planner при derivation.
+`grounded-final-words.v1` сохраняет прежнюю строгую привязку: historical accepted
+jobs, word requests, checkpoints и CLOSED операции не мигрируются. AI v4 protocol,
+source-service, зависимости и финансовая финальность не меняются.
+
+**Утверждённая цель:** отсутствие или неоднозначность повторного OCR-совпадения
+не должны блокировать подтверждённый первым этапом заголовок и остальное извлечение.
+
+**Неизвестное:** изменение локальное, без compiler/tests/build/OCR/provider/deploy;
+статический осмотр не подтверждает runtime accuracy или deployed состояние.
+Источники: перечисленные файлы и `vocab-extractor/docs/header-vnext-implementation.md`,
+`vocab-extractor/docs/header-vnext-api-evidence.md`. Будущие авторизованные прогоны —
+только docker-vm.
+
+
+## Task063 — VM verification (2026-11-18)
+
+Полный Maven verify на docker-vm/external-docker: 291/291 PASS, без
+failures/errors/skips; включая три PostgreSQL actual-runner сценария
+concurrent projection, atomic rollback/replay и interruption/reclaim/late capture.
+Docker image `task063-vocab:r2` успешно собран на том же исходном snapshot.
+Независимое статическое ревью — NO FINDINGS. Это supersedes прежние утверждения
+о незапущенных тестах для проверенного текущего дерева; не подтверждает качество
+реального провайдера, Hibernate persistence context, production replay или deploy.
+Источник: vocab-extractor/docs/task063-review-verification.md, final VM acceptance.
