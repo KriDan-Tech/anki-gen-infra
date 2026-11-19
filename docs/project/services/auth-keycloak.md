@@ -52,3 +52,21 @@ expiresAt отражает conservative acquisition-start + реальный TTL
 Refresh/lifespan/privileges не меняются; full realm GET-merge-PUT preservation
 и drift verification сохранены. Source regressions добавлены без исполнения;
 live auth/provision/send/deploy не выполнялись, future execution только docker-vm.
+
+## SMTP target authority — source fix 2026-11-19
+
+В master-issued admin token локальная проверка теперь распознаёт именно
+resource_access["anki-gen-realm"].roles/manage-realm, а не realm-local
+realm-management или произвольные одноимённые роли. Master admin composite
+по-прежнему принимается; view-only, чужой realm и malformed claims отклоняются.
+Для операции нужен manage-realm, не весь набор realm-admin permissions.
+
+Это подтверждённый source false-negative прежнего gate, но production token shape
+не установлен. Missing/opaque/lightweight claims дают отдельный local-preflight
+отказ без update, не утверждение об отсутствии реальных server privileges.
+Full realm GET допускает view-realm и сам по себе не доказывает manage-realm.
+Server enforcement, full-realm preservation и short-token fencing сохранены;
+эквивалентный read-only manage preflight для admin-cli не установлен.
+Pinned Keycloak26.8.1 sources, regression sources и unknowns:
+[SMTP API evidence](../../auth-keycloak/docs/smtp-api-verification.md).
+Никаких auth/runtime/tests/provision/deploy/send execution не выполнялось.
