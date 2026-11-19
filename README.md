@@ -149,6 +149,21 @@ Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публич�
 
 Явный `python3 auth-keycloak/provision-smtp.py --apply` обновляет SMTP только в существующем realm через kcadm, используя выбранные Compose project/env-file и service `keycloak`. Укажите `--project-directory`, `--compose-file` и `--env-file` для расположения checkout; команды для checkout и `/srv/myapp` приведены в [auth-keycloak README](../auth-keycloak/README.md). Default Compose и Ansible не меняются.
 
+HTTP endpoint теперь определяется из того же выбранного keycloak service/index:
+один running instance и один published8080 loopback binding (127.0.0.1 или [::1]),
+local Unix-socket Docker daemon. Fixed8180 fallback отсутствует; текущая
+127.0.0.1:8180:8080 публикация поддерживается. Relative compose/env paths считаются
+от project directory, inherited SMTP shell interpolation сохраняется.
+DOCKER_HOST и DOCKER_CONTEXT одновременно nonempty запрещены до Compose/auth;
+каждый отдельно должен выбирать local Unix socket. Exact version проверяет
+selected container kc.sh --version, не privileged REST serverinfo.
+JWT role gate удалён; intended update авторизует server manage-realm, GET success
+не является доказательством manage authority. Source regression/integration matrix
+добавлен. На docker-vm все38 focused regressions прошли;4 protected-filesystem
+cases skipped,13 integration cases не запускались из-за отсутствия root/sudo.
+Image digest и runtime outcomes неизвестны. API evidence:
+[SMTP API verification](https://github.com/KriDan-Tech/anki-gen-auth-keycloak/blob/main/docs/smtp-api-verification.md).
+
 Передаётся актуальный SMTP password из выбранной Compose-конфигурации даже при повторном запуске; GET маскирует пароль, его equality проверить нельзя. Команда сравнивает остальную структуру realm, но не проверяет доставку и не отправляет письмо. Сериализуйте внешнее администрирование: GET-merge-PUT не имеет CAS или atomicity. После ошибки во время записи обновление могло произойти; сначала сверьте realm. Runtime/deployed результат не проверялся.
 
 ## Task065 — notification (2026-11-19, source-only)

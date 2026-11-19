@@ -56,3 +56,26 @@ Postgres17/RabbitMQ4 — major tags, не exact patches.
 Сервис разделяет доступный CPU Docker-хоста с остальными контейнерами без собственной
 CPU-квоты. Настройки потоков OCR не менялись. Ansible копирует общий Compose-файл.
 Статическая правка; повторный запуск/deployment не выполнялся.
+
+## SMTP selected-instance recovery — source-only 2026-11-19
+
+`auth-keycloak/provision-smtp.py` разрешает HTTP из selected Compose keycloak
+published8080 того же project/env/compose context, что kcadm exec. Требуются один
+running instance, один loopback binding (127.0.0.1 или [::1]) и local Unix-socket
+Docker daemon. Fixed8180 fallback отсутствует; текущий infra binding
+127.0.0.1:8180:8080 совместим без изменения Compose/Ansible defaults.
+Relative paths project-relative; inherited SMTP interpolation сохраняется.
+Nonempty DOCKER_HOST + DOCKER_CONTEXT одновременно запрещены до Compose/auth;
+разрешён каждый отдельно (local Unix socket) либо verified current local context.
+Version proof — selected container kc.sh --version, не privileged REST serverinfo.
+
+JWT role gate удалён: actual intended update авторизует Keycloak server.
+Short-token fences, ordinary full GET-merge-PUT, full nonSMTP comparison и
+postlaunch uncertainty сохранены. Opt-in integration source создаёт только свои
+unique projects/volumes и fake SMTP, не использует production .env/credentials,
+не вызывает send endpoints, проверяет private stored password и scoped cleanup.
+На docker-vm Python3.12.3 все38 focused regressions прошли;4 protected-filesystem
+cases skipped из-за отсутствия root/sudo.13 integration cases не запускались
+(root требуется); Docker29.9.3/Compose5.7.0 подтверждены. Image digest и runtime/
+integration-cleanup outcomes пока неизвестны.
+[API evidence и permitted-executor handoff](https://github.com/KriDan-Tech/anki-gen-auth-keycloak/blob/main/docs/smtp-api-verification.md).

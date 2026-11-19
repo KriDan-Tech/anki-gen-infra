@@ -39,7 +39,7 @@ existing realm; helper запускает отдельно авторизова�
 ## SMTP admin token lifetime — source fix 2026-11-19
 
 Источники: `auth-keycloak/provision-smtp.py`, `test_provision_smtp.py`,
-[SMTP API evidence](../../auth-keycloak/docs/smtp-api-verification.md).
+[SMTP API evidence](https://github.com/KriDan-Tech/anki-gen-auth-keycloak/blob/main/docs/smtp-api-verification.md).
 Удалён локальный порог expires_in>180, который отвергал успешный ответ с валидным
 коротким token (например 60s) как authentication failed; это не доказывало ошибку
 credentials. Token/TTL shape и положительный integer lifespan по-прежнему проверяются.
@@ -53,20 +53,34 @@ Refresh/lifespan/privileges не меняются; full realm GET-merge-PUT pres
 и drift verification сохранены. Source regressions добавлены без исполнения;
 live auth/provision/send/deploy не выполнялись, future execution только docker-vm.
 
-## SMTP target authority — source fix 2026-11-19
+## SMTP comprehensive recovery — source-only 2026-11-19
 
-В master-issued admin token локальная проверка теперь распознаёт именно
-resource_access["anki-gen-realm"].roles/manage-realm, а не realm-local
-realm-management или произвольные одноимённые роли. Master admin composite
-по-прежнему принимается; view-only, чужой realm и malformed claims отклоняются.
-Для операции нужен manage-realm, не весь набор realm-admin permissions.
+Источники: `auth-keycloak/provision-smtp.py`, focused и protected-import regression
+sources, новый `test_provision_smtp_integration.py`;
+[SMTP API evidence / executor handoff](https://github.com/KriDan-Tech/anki-gen-auth-keycloak/blob/main/docs/smtp-api-verification.md).
 
-Это подтверждённый source false-negative прежнего gate, но production token shape
-не установлен. Missing/opaque/lightweight claims дают отдельный local-preflight
-отказ без update, не утверждение об отсутствии реальных server privileges.
-Full realm GET допускает view-realm и сам по себе не доказывает manage-realm.
-Server enforcement, full-realm preservation и short-token fencing сохранены;
-эквивалентный read-only manage preflight для admin-cli не установлен.
-Pinned Keycloak26.8.1 sources, regression sources и unknowns:
-[SMTP API evidence](../../auth-keycloak/docs/smtp-api-verification.md).
-Никаких auth/runtime/tests/provision/deploy/send execution не выполнялось.
+Предыдущий локальный JWT role gate удалён: missing lightweight claims не доказывают
+отсутствие server authority. Authentication и full realm baseline сохранены; exact Keycloak26.8.1
+проверяется selected container kc.sh --version, без privileged REST serverinfo. Только intended update полагается на server manage-realm;
+GET success не доказывает manage authority. Probe/no-op PUT, privilege expansion,
+whoami fallback, automatic retry/rollback не добавлены.
+
+HTTP endpoint разрешается из того же selected Compose project/service/index,
+что kcadm exec: ровно один running instance и loopback published8080 binding.
+Fixed8180 fallback удалён; local Unix-socket Docker only, /auth сохранён.
+Project-relative compose/env paths не зависят от cwd; inherited Compose
+SMTP interpolation precedence сохраняется. Одновременные nonempty DOCKER_HOST
+и DOCKER_CONTEXT отклоняются до Compose/auth; каждый отдельно должен выбирать
+local Unix-socket daemon. Byte bounds/native framing, protected stdin
+tempfiles и sanitized prelaunch/uncertain-postlaunch errors усилены.
+Full nonSMTP projection включает device/CIBA/PAR и unknown fields; actual password
+передаётся каждый раз, masked GET не доказывает equality. Literal dollar/braced
+passwords сохраняются в apply и first import; atomic protected file handling остаётся.
+
+Определены38 focused +4 protected-filesystem cases и13 named real integration cases.
+Integration source использует только unique disposable VM projects, generated
+credentials/fake SMTP, exact26.8.1 image, private storage password assertion и scoped
+cleanup. На docker-vm (Python3.12.3) выполнены38 focused regressions — все прошли;
+4 protected-filesystem cases пропущены (требуется root, sudo недоступен).
+13 real-Keycloak integration cases не запускались: тот же root-блокер.
+Docker29.9.3/Compose5.7.0 подтверждены. Это не integration/deployed/inbox evidence.
