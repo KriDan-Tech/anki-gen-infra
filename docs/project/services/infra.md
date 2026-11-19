@@ -48,10 +48,11 @@ RabbitMQ named data volume и stable hostname добавлены для durable 
 operator migration оценки до rollout (новый volume скрывает старые данные).
 Postgres17/RabbitMQ4 — major tags, не exact patches.
 Ни runtime, ни deployment, ни provisioning/send не выполнялись.
-## CPU quota — исправление 2026-11-19
 
-Источник: `infra/docker-compose.yml`, `infra/.env.example`. Лимит source-service
-задаётся `SOURCE_CPU_BUDGET`, default 6 CPU для текущей ВМ с 6 vCPU.
-Явное значение в приватном `.env` имеет приоритет: оно не должно превышать
-число CPU Docker-хоста. Ansible копирует этот Compose-файл без отдельного шаблона.
-Исправление статическое; повторный запуск/deployment не выполнялся.
+## CPU source-service — решение 2026-11-19
+
+Источник: `infra/docker-compose.yml`. По решению владельца лимит `cpus`
+у source-service удалён; переменная `SOURCE_CPU_BUDGET` больше не используется.
+Сервис разделяет доступный CPU Docker-хоста с остальными контейнерами без собственной
+CPU-квоты. Настройки потоков OCR не менялись. Ansible копирует общий Compose-файл.
+Статическая правка; повторный запуск/deployment не выполнялся.
