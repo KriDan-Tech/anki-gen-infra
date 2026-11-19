@@ -137,7 +137,7 @@ services:
     container_name: anki-source-service
     # VERIFIED Compose 5.7.0 config -q accepts cpus (Docker 29.9.3), Main's VM evidence:
     # /home/srvadmin/.openclaw/workspace/reports/task050-verification/api-evidence.md
-    cpus: ${SOURCE_CPU_BUDGET:-10}
+    cpus: ${SOURCE_CPU_BUDGET:-6}
     restart: unless-stopped
     environment:
       POSTGRES_HOST: postgres
