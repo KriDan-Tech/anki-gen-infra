@@ -15,6 +15,9 @@ app_acme_data_dir: "acme-data"
 app_acme_timer_oncalendar: "*-*-* 01:00:00 UTC"
 
 app_repos:
+  - name: anki-gen-notification
+    url: git@github.com:KriDan-Tech/anki-gen-notification.git
+    version: main
   - name: anki-gen-auth-keycloak
     url: git@github.com:KriDan-Tech/anki-gen-auth-keycloak.git
     version: main

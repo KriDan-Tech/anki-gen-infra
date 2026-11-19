@@ -150,3 +150,42 @@ Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публич�
 Явный `python3 auth-keycloak/provision-smtp.py --apply` обновляет SMTP только в существующем realm через kcadm, используя выбранные Compose project/env-file и service `keycloak`. Укажите `--project-directory`, `--compose-file` и `--env-file` для расположения checkout; команды для checkout и `/srv/myapp` приведены в [auth-keycloak README](../auth-keycloak/README.md). Default Compose и Ansible не меняются.
 
 Передаётся актуальный SMTP password из выбранной Compose-конфигурации даже при повторном запуске; GET маскирует пароль, его equality проверить нельзя. Команда сравнивает остальную структуру realm, но не проверяет доставку и не отправляет письмо. Сериализуйте внешнее администрирование: GET-merge-PUT не имеет CAS или atomicity. После ошибки во время записи обновление могло произойти; сначала сверьте realm. Runtime/deployed результат не проверялся.
+
+## Task065 — notification (2026-11-19, source-only)
+
+Добавлен internal `notification`, build context `./anki-gen-notification`,
+remote `git@github.com:KriDan-Tech/anki-gen-notification.git` в app_repos.
+Private clone выполняется на **Ansible controller** с become:false, затем rsync
+на /srv/myapp. Target deploy SSH key сам по себе не даёт controller repo access.
+Optional app_repos[].key_file — private key path на controller; ключи не commit'ить.
+
+Перед startup application stack Ansible поднимает только postgres и выполняет
+`postgres/provision-notification-db.sh` через exec -T. Тот же source вызывается
+fresh-volume initializer. Он создаёт только notification_sandbox_db/отдельную
+non-superuser роль; elevated/shared roles и неожиданный DB owner отклоняются.
+Required NOTIFICATION_DB_USER/PASSWORD находятся в private .env.
+Общий initializer на existing volume НЕ перезапускается, volumes не удаляются,
+Flyway repair не выполняется. Known deployed deck V1 history/schema mismatch —
+отдельный operator prerequisite перед deck V2, а не повод менять checksum.
+
+Notification получает shared семь SMTP_* vars и dedicated
+NOTIFICATION_DIRECTORY_CLIENT_SECRET, не bootstrap/billing secret.
+Все семь SMTP_* пусты → внутренний Mailpit mailpit:1025 no TLS/auth; partial external
+config запрещён. Внешний SMTP требует starttls(required) либо implicit tls,
+certificate/hostname checks и bounded timeouts.
+Existing Keycloak realm нужен dedicated provisioner из auth-keycloak README;
+его запуск не автоматизирован и здесь не выполнялся.
+Notification health не зависит от Keycloak/SMTP: отсутствующий directory доступ
+задерживает persisted jobs, после восьми attempts они DEAD.
+Public send API/port/proxy route не добавляется.
+
+Rabbit data теперь имеет named volume rabbitmq-data и stable hostname rabbitmq. На existing окружении
+подключение нового volume скрывает прежний container-local data directory:
+до отдельно разрешённого rollout оператор должен оценить/migrate существующие
+queues/messages, а не считать такой переход сохранением старого broker state.
+PostgreSQL17/RabbitMQ4 tags закрепляют major, не exact patches.
+
+Документы сервиса: [polyrepo notification README](../notification/README.md);
+standalone mirror: [notification](docs/project/services/notification.md).
+No build/tests/validation/deploy/provision/send performed. Любое будущее отдельно
+разрешённое исполнение — только docker-vm ответственным оператором.

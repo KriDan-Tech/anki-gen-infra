@@ -11,6 +11,9 @@
     repo: "{{ item.url }}"
     dest: "/tmp/{{ item.name }}"
     version: "{{ item.version | default('main') }}"
+    # UNVERIFIED: ansible-core version is not pinned in this repo; exact-version gap.
+    # key_file resolves on the controller, not on the application VM.
+    key_file: "{{ item.key_file | default(omit) }}"
     accept_newhostkey: true
     force: true
   loop: "{{ app_repos }}"

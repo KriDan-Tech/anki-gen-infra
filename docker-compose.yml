@@ -18,6 +18,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       # передаются в init-скрипт 01-databases.sh (создание баз и пользователей сервисов)
+      NOTIFICATION_DB_USER: ${NOTIFICATION_DB_USER:?Set dedicated notification DB username}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?Set notification DB password}
       KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       SOURCE_DB_USER: ${SOURCE_DB_USER}
@@ -33,6 +35,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres/provision-notification-db.sh:/opt/provision-notification-db.sh:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -47,7 +50,10 @@ services:
   rabbitmq:
     image: rabbitmq:4-management
     container_name: anki-rabbitmq
+    hostname: rabbitmq
     restart: unless-stopped
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
@@ -279,6 +285,41 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # No public send API/ports. Keycloak downtime delays durable jobs, not startup.
+  notification:
+    build:
+      context: ./anki-gen-notification
+    container_name: anki-notification
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      NOTIFICATION_DB_NAME: notification_sandbox_db
+      NOTIFICATION_DB_USER: ${NOTIFICATION_DB_USER:?Set dedicated notification DB username}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?Set notification DB password}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_VHOST: anki-sandbox
+      NOTIFICATION_PUBLIC_ORIGIN: https://${PUBLIC_HOST}
+      NOTIFICATION_KEYCLOAK_BASE: http://keycloak:8080/auth
+      NOTIFICATION_KEYCLOAK_REALM: anki-gen
+      NOTIFICATION_DIRECTORY_CLIENT_SECRET: ${NOTIFICATION_DIRECTORY_CLIENT_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+      rabbitmq:
+        condition: service_healthy
+
   # Единая точка входа (этап 6): маршруты по префиксам, проверка JWT Keycloak, X-User-Id, Swagger UI.
   # Адреса сервисов — внутри сети compose; снаружи доступен только gateway.
   api-gateway:
@@ -428,6 +469,7 @@ services:
       - ./certs:/certs
 
 volumes:
+  rabbitmq-data:
   postgres-data:
   deck-exports:
   sources:

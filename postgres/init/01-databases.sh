@@ -45,4 +45,6 @@ create_service_db "builder_sandbox_db"   "${BUILDER_DB_USER}"   "${BUILDER_DB_PA
 create_service_db "deck_sandbox_db"      "${DECK_DB_USER}"      "${DECK_DB_PASSWORD}"
 create_service_db "billing_sandbox_db"  "${BILLING_SANDBOX_DB_USER}" "${BILLING_SANDBOX_DB_PASSWORD}"
 
+bash /opt/provision-notification-db.sh
+
 echo "01-databases.sh: все базы и роли готовы."

@@ -1,4 +1,27 @@
 
+# UNVERIFIED: ansible-core/community.docker versions are not pinned; see notification API notes.
+# Do not rerun the entire fresh-volume initializer against an existing cluster.
+- name: Запустить только PostgreSQL перед targeted provisioning
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    services: [postgres]
+    state: present
+    wait: true
+
+- name: Создать только notification DB и непривилегированную роль
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - postgres
+      - bash
+      - /opt/provision-notification-db.sh
+    chdir: "{{ app_dir }}"
+  no_log: true
+  changed_when: false
+
 - name: Собрать образы и запустить стек
   community.docker.docker_compose_v2:
     project_src: "{{ app_dir }}"

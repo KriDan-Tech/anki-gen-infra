@@ -17,3 +17,21 @@ Keycloak realm/client provisioning и identity. Gateway валидирует т�
 
 ## Практическая навигация (осмотр 2026-11-16)
 [Dockerfile](../../auth-keycloak/Dockerfile) задаёт pinned image/startup import; [realm-export.json](../../auth-keycloak/realm-export.json) — декларативную конфигурацию realm; [README](../../auth-keycloak/README.md) и scripts [create-review-user.py](../../auth-keycloak/create-review-user.py), [provision-billing-admin.py](../../auth-keycloak/provision-billing-admin.py) — provisioning entrypoints. Секретные значения не копируются в docs; checked-in realm не доказывает его применённое состояние.
+
+## Task065 — notification-directory, source-only 2026-11-19
+
+Осмотрены/написаны `auth-keycloak/provision-notification-directory.py` и staged
+client в `realm-export.json`; исходный `Dockerfile` pin-ит Keycloak26.8.1.
+Новый standalone idempotent existing-realm provisioner использует client credentials
+service account, fullScopeAllowed=false, view-users mapping + scope и role mapper.
+Проверяет exact fixed composite closure query-users/query-groups, исключает
+manage-users/realm-admin/прочие effective management roles. До проверки новых
+account privileges client staged disabled; после writes — read-back verification.
+Billing и SMTP provisioners не менялись.
+
+Цель: runtime notification exact-ID user lookup без email из events/search и без
+bootstrap/billing credentials. Enabled + emailVerified + single valid mailbox,
+иначе suppression. Runtime получает только dedicated secret.
+Ничего не provisioned/deployed, письма не отправлялись. Realm import не обновляет
+existing realm; helper запускает отдельно авторизованный оператор только docker-vm.
+Источники/API gaps: [notification API notes](../../notification/docs/api-verification.md).

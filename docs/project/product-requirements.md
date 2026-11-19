@@ -1,6 +1,6 @@
 # Продуктовые требования (утверждённая цель)
 
-Зафиксировано 2026-11-16 по двум последним решениям в локальной памяти `/home/srvadmin/.openclaw/workspace/memory/dev/anki-gen/anki-gen-decisions.md` (решения 2026-11-16; не опубликована): первоначальные ответы владельца — Telegram 11200, уточнения — Telegram 11203. Это требования владельца, а не доказательство реализации или релизного объёма. Историческая provenance, локально и не опубликована: `/home/srvadmin/.openclaw/workspace/projects/dev-anki-gen/ARCHITECTURE.md` (baseline 2026-10-26, supersession note 2026-11-16) и `/home/srvadmin/.openclaw/workspace/business/ecb-current-pricing.md` (реестр обновлён 2026-11-01).
+Зафиксировано 2026-11-16 по двум последним решениям в `memory/dev/anki-gen/anki-gen-decisions.md`: первоначальные ответы владельца — Telegram 11200, уточнения — Telegram 11203. Это требования владельца, а не доказательство реализации или релизного объёма. Исторические пункты архитектурного черновика могут быть устаревшими; см. узкие пометки supersession в workspace ARCHITECTURE и pricing.
 
 ## Task064 — supersession для НОВЫХ PDF, 2026-11-18
 
@@ -62,7 +62,7 @@ immutable request сохраняются; старые принятые зада
 
 ## Оплата и наборы
 
-Пользователь подтверждает и оплачивает запуск в UI до обработки; это заменяет прежнюю модель списания после доставки/завершения. Внутренние retry/повторная обработка системы не требуют доплаты. PDF-пакет определяется числом выбранных для обработки физических страниц, а не полным размером файла: 1–10 страниц — 29; 11–99 — 99; 100–299 — 149; 300–400 — 259 внутренних кредитов («звёзд»). Это не Telegram Stars. Перевод слова в словаре бесплатен; добавление слова в колоду стоит 2 внутренних кредита. Историческая provenance цены: ранее утверждённая запись от 2026-10-31 в локальном источнике `/home/srvadmin/.openclaw/workspace/business/ecb-current-pricing.md` (запись 2026-10-31; не опубликована); она сохранена как существующая цена, а не установлена заново в решениях 2026-11-16.
+Пользователь подтверждает и оплачивает запуск в UI до обработки; это заменяет прежнюю модель списания после доставки/завершения. Внутренние retry/повторная обработка системы не требуют доплаты. PDF-пакет определяется числом выбранных для обработки физических страниц, а не полным размером файла: 1–10 страниц — 29; 11–99 — 99; 100–299 — 149; 300–400 — 259 внутренних кредитов («звёзд»). Это не Telegram Stars. Перевод слова в словаре бесплатен; добавление слова в колоду стоит 2 внутренних кредита. Историческая provenance цены: ранее утверждённая запись от 2026-10-31 в [реестре цен рабочего пространства](../../../.openclaw/workspace/business/ecb-current-pricing.md); она сохранена как существующая цена, а не установлена заново в решениях 2026-11-16.
 
 Успешное завершение с нулём слов не вызывает автоматического возврата; пользователь при необходимости обращается в поддержку. Распознанная критическая ошибка, завершающая обработку, означает отмену и возврат. Не смешивать с ошибками отдельных страниц/слов, которые следует пропускать. Неопределены классификация критических ошибок, финучёт частичного результата и судьба карточек, уже записанных при критическом завершении. Решение не устанавливает ни обязательное удаление этих карточек, ни запрет на удаление; жизненный цикл остаётся открытым.
 
@@ -162,4 +162,30 @@ page-only проверок исполнились. Миграции source на 
 после проверенного снимка не менялись; затем обновлена только документация
 результатов. Исторические frozen profiles и `lessons-detect` сохранены.
 
-Подробности: [отчёт](../task064-verification.md).
+Подробности: [отчёт](../infra/docs/task064-verification.md).
+
+## Task065 — автоматическое email-уведомление о готовой колоде (2026-11-19)
+
+Утверждённая цель: отдельный notification repository/container, RabbitMQ separate
+queue, автоматическое письмо с названием колоды и authenticated ссылкой
+`/decks/{deckId}`. Привлекательный русский HTML + plain-text alternative,
+без attachment, toggle или historical backfill. Получатель только из verified
+enabled Keycloak identity по exact user ID; событие не несёт email/произвольный URL.
+
+Готовность — полная durable delivery карточек, не OCR/extraction/build completion
+и не один last marker. Modern manifest с полным numbered coverage и legacy
+numbered aggregation порождают одно immutable semantic ready intent на
+owner/operation/deck/type (без retry generation). Successful empty/dedup-only
+delivery допустима; создание пустой колоды/failed generation не уведомляет.
+Финансовые правила/settlement не меняются.
+
+Наблюдаемая source реализация 2026-11-19:
+`deck-service/.../messaging/{DeliveryEvidenceStore,LegacyBuildReceiptStore,
+DeckReadyOutboxStore,DeckReadyDispatcher}.java`, append-only deck V2,
+`notification/src/main/`, `auth-keycloak/provision-notification-directory.py`,
+infra Compose/Ansible/targeted DB source.
+SMTP I/O вне transactions, stable Message-ID, durable bounded retries,
+malformed broker DLQ отдельно от SMTP DEAD jobs. Exactly-once email не обещается.
+No tests/build/validation/deploy/provision/send performed; runtime/deployed unknown.
+Разрешённые будущие исполнения только docker-vm.
+См. [notification](services/notification.md).

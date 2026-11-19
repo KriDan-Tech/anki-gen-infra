@@ -13,6 +13,31 @@
 Текущая модель/dedup/export может не совпадать с нужной идентичностью карточки; сверяйте конкретную entity и constraints. Не обещать импорт, delete semantics или upsert при повторном экспорте без inspected source. Удаление карточек при критической отмене extraction не утверждено.
 
 ## Практическая навигация (осмотр 2026-11-16)
-[CardsBuiltListener](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/src/main/java/com/ankigen/deckservice/messaging/CardsBuiltListener.java) принимает card-builder result; [DeckService](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/src/main/java/com/ankigen/deckservice/deck/DeckService.java) владеет deck operations; [ExportService](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/src/main/java/com/ankigen/deckservice/export/ExportService.java) и [ExportWorker](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/src/main/java/com/ankigen/deckservice/export/ExportWorker.java) ведут запрос и background export. Прослеживать повторный export по этим слоям, не выводя upsert-гарантию из пожелания.
+[CardsBuiltListener](../../deck-service/src/main/java/com/ankigen/deckservice/messaging/CardsBuiltListener.java) принимает card-builder result; [DeckService](../../deck-service/src/main/java/com/ankigen/deckservice/deck/DeckService.java) владеет deck operations; [ExportService](../../deck-service/src/main/java/com/ankigen/deckservice/export/ExportService.java) и [ExportWorker](../../deck-service/src/main/java/com/ankigen/deckservice/export/ExportWorker.java) ведут запрос и background export. Прослеживать повторный export по этим слоям, не выводя upsert-гарантию из пожелания.
 
-Настройки/схема: [README](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/README.md), [pom.xml](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/pom.xml), [migration V1](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/src/main/resources/db/migration/V1__init.sql). Контракт: [API verification](https://github.com/KriDan-Tech/anki-gen-deck-service/blob/main/docs/api-verification.md).
+Настройки/схема: [README](../../deck-service/README.md), [pom.xml](../../deck-service/pom.xml), [migration V1](../../deck-service/src/main/resources/db/migration/V1__init.sql). Контракт: [API verification](../../deck-service/docs/api-verification.md).
+
+## Task065 — статически написанная реализация, 2026-11-19
+
+Источники: `deck-service/src/main/java/com/ankigen/deckservice/messaging/`
+(`DeliveryEvidenceStore`, `CardsBuiltListener`, новые `DeckReadyEvent`,
+`DeckReadyOutboxStore`, `DeckReadyDispatcher`, `LegacyBuildReceiptStore`,
+`ReadyTopology`), `src/main/resources/db/migration/V2__deck_ready_notification.sql`,
+`application.yml`, `DeckServiceApplication.java`.
+
+Modern completeManifest после всех numbered durable receipts в одной transaction
+с cards/evidence создаёт notification outbox intent. Locked persisted Deck задаёт
+owner/name. Generation fencing/ownership/fingerprints не обходятся.
+Legacy durable identity/batches/terminal count должны доказать 1..N; pre-cutover
+batches не backfill'ятся. Deleted-deck legacy skip сохранён.
+Semantic owner/operation/deck/type без generation не меняет старый envelope при retry.
+Bounded SKIP LOCKED claims, token/lease fencing, network вне transaction;
+persistent event со stable ID, correlated ACK + no mandatory return.
+Queue `notification.deck.ready.v1`, routing `deck.ready.v1`, DLX/DLQ как в
+[notification](notification.md).
+
+Утверждённая цель Task065: automatic ready email, не OCR/build-completed email.
+Пустой deck не уведомляет; successful empty/dedup delivery может уведомить.
+Billing не меняется. Unknowns: compile/runtime/concurrency/broker behavior ещё не
+проверялись; существующий deployed V1 history/schema mismatch — обязательный
+отдельный operator prerequisite перед V2. V1 не переписан, auto repair не добавлен.

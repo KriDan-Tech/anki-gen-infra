@@ -46,3 +46,26 @@ volume нет. При обновлении Compose `remove_orphans` может �
 
 При конфликте существующей роли, credentials или владельца остановитесь для отдельного
 разбора; init-скрипт не выполняет автоматический ремонт и не меняет существующие объекты.
+
+## Task065 — notification database (2026-11-19)
+
+`provision-notification-db.sh` — targeted idempotent source, НЕ общий initializer.
+Compose монтирует его read-only в /opt/provision-notification-db.sh; fresh
+01-databases.sh вызывает его один раз, Ansible docker tasks — перед application
+startup после healthy postgres (для existing volume).
+Только notification_sandbox_db и dedicated NOTIFICATION_DB_USER/PASSWORD.
+Роль не superuser/createdb/createrole/replication/bypassrls и не member чужих ролей;
+shared/elevated identity и неожиданный existing DB owner приводят к отказу, не repair.
+PUBLIC database privileges отозваны. Script не меняет схемы других сервисов.
+Параметры передаются через quoted psql variables/format %I/%L, не SQL interpolation.
+
+Нельзя удалять volumes, повторять весь fresh initializer на existing cluster,
+автоматически repair Flyway или переписывать deck V1.
+Known deployed deck V1 history/schema mismatch требует отдельного решения оператора
+до применения append-only deck V2.
+
+Exact source references: PostgreSQL17
+https://www.postgresql.org/docs/17/sql-createrole.html ,
+https://www.postgresql.org/docs/17/app-psql.html .
+SQL execution/permissions/concurrency не проверялись; только source authored.
+Будущее отдельно разрешённое исполнение — docker-vm.

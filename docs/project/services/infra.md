@@ -19,3 +19,28 @@
 [infra/docker-compose.yml](../../infra/docker-compose.yml) определяет local assembled services, build contexts, networks, volumes и environment wiring; [infra/.env.example](../../infra/.env.example) перечисляет config names/sample placeholders, но не реальные секреты. Reverse proxy, ACME и deployment automation находятся в `infra/` и `infra/ansible/`; checked-in configuration не тождественна deployed environment.
 
 Поддерживающий вход: [README](../../infra/README.md), [Compose](../../infra/docker-compose.yml), [Postgres initialization context](../../infra/postgres/README.md), [vNext full-stack handoff](../../infra/docs/task043-vnext-fullstack-handoff.md). При изменении wiring сверять соответствующие service build contexts и deployment-specific role; в рамках этого справочника никаких операций с окружением не выполнялось.
+
+## Task065 — notification wiring, source-only 2026-11-19
+
+Источники: `infra/docker-compose.yml`, `.env.example`,
+`ansible/roles/app/{defaults/main.yml,tasks/preparation.yml,tasks/docker.yml}`,
+`postgres/init/01-databases.sh`, `postgres/provision-notification-db.sh`.
+app_repos включает remote `git@github.com:KriDan-Tech/anki-gen-notification.git`;
+Compose context ровно `./anki-gen-notification`. Git clone на controller
+become:false, optional per-repo key_file также controller-side, затем synchronize
+в /srv/myapp. Target SSH identity не доказывает доступ controller к private remote.
+
+До application startup targeted idempotent provisioning создаёт только
+notification_sandbox_db/непривилегированную отдельную роль; fresh init вызывает тот
+же script. Общий initializer на existing volume не повторяется. Нельзя удалять
+volumes/Flyway repair; known deployed deck V1 mismatch требует operator решения.
+Internal notification без public send API/port, dedicated directory secret и shared
+SMTP7 contract. Keycloak не startup/health dependency: outage откладывает jobs
+с bounded retries, не мешает wait. External SMTP требует TLS, all-empty settings
+явно выбирают internal Mailpit.
+
+RabbitMQ named data volume и stable hostname добавлены для durable queues при recreation;
+для существующего broker переход с container-local storage требует отдельной
+operator migration оценки до rollout (новый volume скрывает старые данные).
+Postgres17/RabbitMQ4 — major tags, не exact patches.
+Ни runtime, ни deployment, ни provisioning/send не выполнялись.

@@ -11,14 +11,10 @@
 
 Дата среза: 2026-11-16. Этот каталог — канонический продуктово-архитектурный справочник для polyrepo-сборки в `/home/srvadmin/projects/dev-anki-gen`. Зеркало для standalone-пользователей публикуется в `infra/docs/project/` репозитория infra; синхронизируйте зеркало с каноническими docs в том же наборе публикации. Сервисные репозитории остаются отдельными Git-репозиториями; общего remote для канонических docs не предполагается.
 
-## Публикационный срез
-
-Это зеркало документации для кода, включающего Task054 и Task055; финальная приёмка Task055 ещё ожидается. Публикация изменений в `main` не означает deployment или продуктовую приёмку. Матрица веток/HEAD ниже — датированный локальный snapshot на 2026-11-16, не утверждение о том, что эти рабочие деревья или dirty HEAD являются последними опубликованными версиями.
-
 ## Навигация
 
 - [Требования продукта](product-requirements.md): утверждённая цель, тарифы и незакрытые решения.
-- Сервисы: [source-service](services/source-service.md), [vocab-extractor](services/vocab-extractor.md), [card-builder](services/card-builder.md), [deck-service](services/deck-service.md), [billing-service](services/billing-service.md), [api-gateway](services/api-gateway.md), [auth-keycloak](services/auth-keycloak.md), [web-frontend](services/web-frontend.md), [infra](services/infra.md).
+- Сервисы: [source-service](services/source-service.md), [vocab-extractor](services/vocab-extractor.md), [card-builder](services/card-builder.md), [deck-service](services/deck-service.md), [billing-service](services/billing-service.md), [api-gateway](services/api-gateway.md), [auth-keycloak](services/auth-keycloak.md), [web-frontend](services/web-frontend.md), [infra](services/infra.md), [notification](services/notification.md).
 
 ## Модель истины и источники
 
@@ -34,7 +30,7 @@ PDF — чувствительный входной материал. Жизне
 
 ## Поддержка документации
 
-См. [правила поддержки документации](maintenance-rules.md) для правила синхронного обновления. При изменении поведения, контрактов, жизненного цикла, тарифов, эксплуатационных зависимостей или требований обновить эту каноническую документацию в том же наборе изменений; если влияния нет — зафиксировать явное «документация не затронута» в задаче/ревью. Сохранять источники и дату проверки; реализованное и целевое не смешивать.
+См. [AGENTS.md в корне polyrepo](../AGENTS.md) для правила синхронного обновления. При изменении поведения, контрактов, жизненного цикла, тарифов, эксплуатационных зависимостей или требований обновить эту каноническую документацию в том же наборе изменений; если влияния нет — зафиксировать явное «документация не затронута» в задаче/ревью. Сохранять источники и дату проверки; реализованное и целевое не смешивать.
 
 ## Проверка Task064 — 2026-11-18
 
@@ -51,4 +47,12 @@ page-only проверок исполнились. Миграции source на 
 после проверенного снимка не менялись; затем обновлена только документация
 результатов. Исторические frozen profiles и `lessons-detect` сохранены.
 
-Подробности: [отчёт](../task064-verification.md).
+Подробности: [отчёт](../infra/docs/task064-verification.md).
+
+## Task065 — notification, source-only 2026-11-19
+
+Добавлен отдельный [notification](services/notification.md): durable deck ready
+outbox → separate Rabbit queue → verified Keycloak recipient → HTML/text SMTP.
+Продуктовое решение и runtime unknowns — в [requirements](product-requirements.md)
+и service pages. Canonical и infra/docs/project mirror обновляются вместе.
+Build/tests/validation/provision/deploy/send для Task065 не выполнялись.
