@@ -35,3 +35,20 @@ bootstrap/billing credentials. Enabled + emailVerified + single valid mailbox,
 Ничего не provisioned/deployed, письма не отправлялись. Realm import не обновляет
 existing realm; helper запускает отдельно авторизованный оператор только docker-vm.
 Источники/API gaps: [notification API notes](../../notification/docs/api-verification.md).
+
+## SMTP admin token lifetime — source fix 2026-11-19
+
+Источники: `auth-keycloak/provision-smtp.py`, `test_provision_smtp.py`,
+[SMTP API evidence](../../auth-keycloak/docs/smtp-api-verification.md).
+Удалён локальный порог expires_in>180, который отвергал успешный ответ с валидным
+коротким token (например 60s) как authentication failed; это не доказывало ошибку
+credentials. Token/TTL shape и положительный integer lifespan по-прежнему проверяются.
+
+expiresAt отражает conservative acquisition-start + реальный TTL; elapsed time
+и monotonic deadline ограничивают --check/--apply. Перед kcadm timeout динамически
+ограничивается remaining lifetime с запасом на его pinned 5s refresh threshold,
+1s clock margin и 10s readback. Недостаточный budget отклоняется до запуска update
+с отдельной sanitized причиной; после запуска ошибки остаются may-have-occurred.
+Refresh/lifespan/privileges не меняются; full realm GET-merge-PUT preservation
+и drift verification сохранены. Source regressions добавлены без исполнения;
+live auth/provision/send/deploy не выполнялись, future execution только docker-vm.
