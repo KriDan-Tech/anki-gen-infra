@@ -144,3 +144,9 @@ volume и не используйте docker compose down -v. Подготовк
 Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публичный HTTPS с доверенным сертификатом. События: `payment.succeeded`, `payment.canceled`, `payment.waiting_for_capture`.
 
 Текущие начальные миграции рассчитаны на новую sandbox-БД и RabbitMQ vhost. Для существующих БД требуется отдельная миграция; удаление рабочих volumes не является путём обновления.
+
+## Existing-realm SMTP update
+
+Явный `python3 auth-keycloak/provision-smtp.py --apply` обновляет SMTP только в существующем realm через kcadm, используя выбранные Compose project/env-file и service `keycloak`. Укажите `--project-directory`, `--compose-file` и `--env-file` для расположения checkout; команды для checkout и `/srv/myapp` приведены в [auth-keycloak README](../auth-keycloak/README.md). Default Compose и Ansible не меняются.
+
+Передаётся актуальный SMTP password из выбранной Compose-конфигурации даже при повторном запуске; GET маскирует пароль, его equality проверить нельзя. Команда сравнивает остальную структуру realm, но не проверяет доставку и не отправляет письмо. Сериализуйте внешнее администрирование: GET-merge-PUT не имеет CAS или atomicity. После ошибки во время записи обновление могло произойти; сначала сверьте realm. Runtime/deployed результат не проверялся.
