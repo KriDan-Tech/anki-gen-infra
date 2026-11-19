@@ -159,14 +159,17 @@ Private clone выполняется на **Ansible controller** с become:false
 на /srv/myapp. Target deploy SSH key сам по себе не даёт controller repo access.
 Optional app_repos[].key_file — private key path на controller; ключи не commit'ить.
 
-Перед startup application stack Ansible поднимает только postgres и выполняет
-`postgres/provision-notification-db.sh` через exec -T. Тот же source вызывается
-fresh-volume initializer. Он создаёт только notification_sandbox_db/отдельную
-non-superuser роль; elevated/shared roles и неожиданный DB owner отклоняются.
-Required NOTIFICATION_DB_USER/PASSWORD находятся в private .env.
-Общий initializer на existing volume НЕ перезапускается, volumes не удаляются,
-Flyway repair не выполняется. Known deployed deck V1 history/schema mismatch —
-отдельный operator prerequisite перед deck V2, а не повод менять checksum.
+По уточнению владельца 2026-11-19 выбран чистый запуск стенда с нуля.
+Notification DB создаётся общим `create_service_db` в
+`postgres/init/01-databases.sh`, как базы остальных сервисов:
+notification_sandbox_db + NOTIFICATION_DB_USER/PASSWORD из private .env.
+Задайте отдельные credentials для notification. Init выполняется только на пустом
+postgres-data; отдельного PostgreSQL-start/DB-provision шага Ansible и отдельного
+notification DB script/mount больше нет. Ansible сохраняет обычный build/start
+стека и proxy restart. Existing volumes автоматически не дополняются и не очищаются.
+Исторический deployed deck V1 history/schema mismatch остаётся вопросом отдельного
+reconciliation при переиспользовании старой БД; чистый запуск не является upgrade
+её истории. Flyway repair/переписывание V1 не добавлены.
 
 Notification получает shared семь SMTP_* vars и dedicated
 NOTIFICATION_DIRECTORY_CLIENT_SECRET, не bootstrap/billing secret.

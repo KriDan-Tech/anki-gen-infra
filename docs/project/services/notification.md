@@ -45,10 +45,14 @@ SENT только после SMTP success; DB commit crash после acceptance
 
 No build/tests/validation/deploy/live provisioning/email. Runtime/deployed state
 не подтверждено. Future separately authorized execution — только docker-vm.
-Fresh/existing notification DB provisioning до app startup описан в infra;
+По уточнению владельца 2026-11-19 выбран чистый запуск: notification DB создаёт
+общий create_service_db только при пустом postgres-data. Отдельной DB подготовки
+Ansible/script/mount нет; existing volumes автоматически не дополняются.
+Подробности fresh-volume init — в infra;
 controller private-repo access обязателен. Dedicated Keycloak provisioner —
 отдельное operator действие, bootstrap credential не попадает в notification.
-Known deployed deck V1 checksum/schema mismatch — prerequisite перед deck V2.
+Known deployed deck V1 checksum/schema mismatch требует отдельного решения
+только при reuse старой БД; чистый запуск не обновляет её историю.
 Legacy batches до tracking не backfill'ятся и не доказывают completion.
 
 Нужны independent docker-vm compile/regression/concurrency/rollback/broker/TLS/MIME

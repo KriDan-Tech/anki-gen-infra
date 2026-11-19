@@ -24,16 +24,20 @@
 
 Источники: `infra/docker-compose.yml`, `.env.example`,
 `ansible/roles/app/{defaults/main.yml,tasks/preparation.yml,tasks/docker.yml}`,
-`postgres/init/01-databases.sh`, `postgres/provision-notification-db.sh`.
+`postgres/init/01-databases.sh`.
 app_repos включает remote `git@github.com:KriDan-Tech/anki-gen-notification.git`;
 Compose context ровно `./anki-gen-notification`. Git clone на controller
 become:false, optional per-repo key_file также controller-side, затем synchronize
 в /srv/myapp. Target SSH identity не доказывает доступ controller к private remote.
 
-До application startup targeted idempotent provisioning создаёт только
-notification_sandbox_db/непривилегированную отдельную роль; fresh init вызывает тот
-же script. Общий initializer на existing volume не повторяется. Нельзя удалять
-volumes/Flyway repair; known deployed deck V1 mismatch требует operator решения.
+Уточнение владельца 2026-11-19: выбран чистый запуск стенда с нуля.
+Базу `notification_sandbox_db` и роль создаёт тот же create_service_db в общем
+postgres/init/01-databases.sh, что остальные service DBs, только при пустом
+postgres-data. Отдельные notification DB script/mount и два предварительных
+PostgreSQL-start/DB-provision tasks Ansible удалены; обычный build/start и proxy
+restart сохранены. Existing volumes автоматически не дополняются и не очищаются.
+Known deployed deck V1 mismatch остаётся историческим caveat для reuse старой БД,
+а не требованием repair при чистом запуске; Flyway repair не добавлен.
 Internal notification без public send API/port, dedicated directory secret и shared
 SMTP7 contract. Keycloak не startup/health dependency: outage откладывает jobs
 с bounded retries, не мешает wait. External SMTP требует TLS, all-empty settings

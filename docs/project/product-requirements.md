@@ -183,7 +183,11 @@ delivery допустима; создание пустой колоды/failed g
 `deck-service/.../messaging/{DeliveryEvidenceStore,LegacyBuildReceiptStore,
 DeckReadyOutboxStore,DeckReadyDispatcher}.java`, append-only deck V2,
 `notification/src/main/`, `auth-keycloak/provision-notification-directory.py`,
-infra Compose/Ansible/targeted DB source.
+infra Compose/Ansible и общий postgres/init/01-databases.sh.
+Уточнение владельца 2026-11-19: стенд пересоздаётся с нуля; notification DB
+создаёт тот же create_service_db при пустом postgres-data, как остальные service
+DBs. Отдельная PostgreSQL-start/DB-provision подготовка Ansible и отдельный
+notification DB script/mount удалены; upgrade existing volumes не автоматизирован.
 SMTP I/O вне transactions, stable Message-ID, durable bounded retries,
 malformed broker DLQ отдельно от SMTP DEAD jobs. Exactly-once email не обещается.
 No tests/build/validation/deploy/provision/send performed; runtime/deployed unknown.
