@@ -34,6 +34,13 @@ hardening_users:
     ssh_keys:
       - deploy.pub
 
+  - name: openclaw
+    comment: "Openclaw access"
+    shell: /bin/bash
+    sudo: true
+    ssh_keys:
+      - openclaw.pub
+
 # Пользователи, которых на серверах быть не должно.
 hardening_absent_users: []
 
