@@ -1,5 +1,9 @@
 # vocab-extractor
 
+## Инфраструктурные метрики (осмотр 2026-11-20)
+
+Infra Ansible provides an optional generic `app_actuator_targets` scrape list for application endpoints, but no vocab-extractor metrics endpoint or target is asserted by this service note. Keep it unset unless the exact deployed endpoint and private routing are independently established. Infra does not add a public route or change service implementation. Static infra docs do not prove deployment or scrapeability.
+
 ## Task064 — новые PDF только book/page (2026-11-18)
 
 **Решение владельца:** временно без lesson/header detection для новых PDF.
@@ -32,6 +36,12 @@ exact cached sources (см. `vocab-extractor/docs/page-only-contract.md`).
 Reservation-before-activation, cancel/retry/terminal/CLOSED finality и billing
 не менялись. Regression sources написаны, НЕ запускались; static source inspection
 не подтверждает runtime/AI accuracy/deploy. Будущие исполнения только docker-vm.
+
+
+## Метрики — phase 1 (static snapshot 2026-11-20)
+
+Observed source (static inspection, 2026-11-20): `pom.xml` uses the Spring Boot 4.0.0 BOM-managed Micrometer 1.16.0 `micrometer-registry-prometheus`; `application.yml` exposes only `health`, `info`, and `prometheus` over Actuator. Singleton `PipelineMetrics` records counters and durations for `source_load`, `heading_detection`, `plan_build`, `word_extraction`, `result_persist`, and `finish`. Closed label sets are outcomes `success`, `failure`, `lease_lost`, `blocked`; no identifiers, document text, URLs, or provider payload are labels. Source-load, heading-selection/bounded-heading, plan construction, vocabulary-group detection, result transaction, and finish boundaries are timed at their respective call sites. API/version evidence: local Boot 4.0.0 `spring-boot-dependencies` BOM pins Micrometer 1.16.0; Micrometer 1.16.0 core sources confirm Counter/Timer builder, tag, registration, increment and record APIs; Boot 4.0.0 `PrometheusMetricsExportAutoConfiguration` creates `PrometheusMeterRegistry`; Boot 4.0 Actuator endpoint docs confirm `management.endpoints.web.exposure.include`. This static inspection does not establish scrapeability or deployment.
+
 
 
 ## Назначение и интерфейсы

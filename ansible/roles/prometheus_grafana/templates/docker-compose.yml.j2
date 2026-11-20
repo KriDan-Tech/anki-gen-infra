@@ -18,13 +18,14 @@ services:
     image: grafana/grafana:{{ grafana_version }}
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "{{ grafana_bind_address }}:3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: {{ grafana_admin_password | to_json }}
     volumes:
       - grafana_data:/var/lib/grafana
       - "{{ metrics_dir }}/grafana/provisioning:/etc/grafana/provisioning:ro"
+      - "{{ metrics_dir }}/grafana/dashboards:/var/lib/grafana/dashboards:ro"
     networks:
       - monitoring
  

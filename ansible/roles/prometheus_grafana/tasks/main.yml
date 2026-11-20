@@ -1,4 +1,4 @@
-- name: Create prometheus\grafana  directories
+- name: Create prometheus and grafana directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -8,9 +8,12 @@
   loop:
     - "{{ metrics_dir }}"
     - "{{ metrics_dir }}/prometheus"
-    - "{{ metrics_dir }}/grafana/provisioning"
+    - "{{ metrics_dir }}/grafana/provisioning/datasources"
+    - "{{ metrics_dir }}/grafana/provisioning/dashboards"
+    - "{{ metrics_dir }}/grafana/provisioning/alerting"
+    - "{{ metrics_dir }}/grafana/dashboards"
 
-- name: Deploy prometheus\grafana docker-compose file
+- name: Deploy prometheus grafana docker-compose file
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ metrics_dir }}/docker-compose.yml"
@@ -27,10 +30,34 @@
     group: root
     mode: "0644"
 
-- name: Deploy grafana provisioning config
+- name: Deploy grafana datasource config
   ansible.builtin.template:
     src: grafana_provisioning.yml.j2
-    dest: "{{ metrics_dir }}/grafana/provisioning/prometheus.yml"
+    dest: "{{ metrics_dir }}/grafana/provisioning/datasources/prometheus.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy Grafana dashboards provider
+  ansible.builtin.template:
+    src: dashboards_provider.yml.j2
+    dest: "{{ metrics_dir }}/grafana/provisioning/dashboards/provider.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy Grafana alert rules
+  ansible.builtin.template:
+    src: alerting.yml.j2
+    dest: "{{ metrics_dir }}/grafana/provisioning/alerting/infra.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy Grafana dashboard artifacts
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/dashboards/infra-overview.json"
+    dest: "{{ metrics_dir }}/grafana/dashboards/infra-overview.json"
     owner: root
     group: root
     mode: "0644"

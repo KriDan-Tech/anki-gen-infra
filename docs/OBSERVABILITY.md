@@ -1,0 +1,29 @@
+# Observability provisioning
+
+Static configuration snapshot on branch `metrics` (2026-11-20). Nothing in this change was deployed, started, or runtime-verified. These files do not establish target reachability, metric availability, alert delivery, or deployed state.
+
+## Exporters and private scrape routing
+
+The app Compose stack pins node-exporter `v1.10.2`, cAdvisor `v0.55.1`, nginx-prometheus-exporter `1.5.1`, and nginx-log-exporter `v1.11.0`. Their configurable host binds default to loopback. They have no public Traefik route. To scrape remotely, operators must set bind addresses to a private/VPN interface and separately provide private routing and firewall allow rules from the metrics host to only the required ports. This work changes no ACL/firewall rules and invents no host address.
+
+Set Ansible inventory variables `app_node_exporter_target`, `app_cadvisor_target`, `app_nginx_exporter_target`, and `app_nginx_log_exporter_target` to private `host:port` values; blank values omit those jobs. Optional `app_actuator_targets` configures the application actuator job only when endpoints actually exist. `app_source_service_metrics_target` is an independent optional private `host:port` target scraped at `/metrics`; it is blank by default and creates no public route. `app_traefik_metrics_target` is optional too (replaces a former hard-coded address). Ensure source-service itself exposes that route on the private network before setting its target.
+
+The cAdvisor Docker socket bind is marked read-only, but that does not make the Docker API itself read-only. Its endpoint must remain private and tightly firewalled. Grafana and Prometheus host binds default to loopback.
+
+## Grafana file provisioning lifecycle
+
+The Ansible role writes datasource, dashboard-provider, and alert-rule provisioning files below `/opt/metrics/grafana/provisioning`, and copies dashboard JSON to `/opt/metrics/grafana/dashboards`. Provisioning files and dashboard directory are mounted read-only into Grafana; the dashboard provider path is explicitly mounted at `/var/lib/grafana/dashboards`. These source-controlled files are authoritative; UI edits to provisioned dashboards/rules may be overwritten on subsequent provisioning/redeploy. The dashboard provider polls every 30 seconds. Manual dashboard import is available via **Dashboards → New → Import**, using `ansible/roles/prometheus_grafana/files/dashboards/infra-overview.json` and datasource UID `prometheus`.
+
+File provisioning does not create notification recipients/secrets. After Grafana is first available, configure a contact point and notification policy once in Grafana UI if alert delivery is needed. Alert rules without a contact point/policy do not deliver notifications. Exact Grafana 13.3.0 provisioning schemas in the authored datasource/provider/alert files were not verified from upstream source in this run; treat as unverified until checked.
+
+## NGINX log privacy and rotation
+
+NGINX `metrics_safe` access records contain only status, request duration, and upstream response duration; they omit IP, host, URI/path/query, headers, user-agent, and payload. The stub_status listener is on port 8081 inside the app Compose network only, with no host publication or public proxy route.
+
+The NGINX access log is file-based at `/var/log/nginx/access.log`, shared with nginx-log-exporter through the `nginx-access-log` named volume. There is **no bounded rotation configured for these external/file-based NGINX access logs**. Rotation/reopen semantics are **UNVERIFIED**; no rotation mechanism is configured or claimed. Docker stdout/stderr log rotation does not cover log files stored in a mounted volume or bind-mounted files, so file growth remains unbounded.
+
+The nginx-log-exporter v1.11.0 config is now HCL in `proxy/nginxlog-exporter.hcl`, mounted at `/etc/nginxlog-exporter/config.hcl`, and Compose invokes `-config-file` with that path. Exact-version source confirms HCL shape and `listen`, `namespace`, `source.files`, and `format` fields: [v1.11.0 example-config.hcl](https://raw.githubusercontent.com/martin-helmich/prometheus-nginxlog-exporter/76552e7cadc1f76b4e28b5c872412db4a091aca0/example-config.hcl). The CLI flag is source-verified against the [v1.11.0 upstream tree](https://github.com/martin-helmich/prometheus-nginxlog-exporter/tree/v1.11.0). The configured input path and log format match the proxy template and Compose volume. Parser behavior, exported metric names, and file rotation/reopen behavior remain **UNVERIFIED**; no config validator or runtime check was run.
+
+## Exact-version source references and limits
+
+Pinned references: [node-exporter v1.10.2](https://github.com/prometheus/node_exporter/tree/v1.10.2), [cAdvisor v0.55.1](https://github.com/google/cadvisor/tree/v0.55.1), [nginx-prometheus-exporter v1.5.1](https://github.com/nginx/nginx-prometheus-exporter/tree/v1.5.1), [nginx-log-exporter v1.11.0](https://github.com/martin-helmich/prometheus-nginxlog-exporter/tree/v1.11.0), [Prometheus 3.16 config](https://prometheus.io/docs/prometheus/3.16/configuration/configuration/), and [Grafana 13.3 provisioning](https://grafana.com/docs/grafana/v13.3/administration/provisioning/). The exact-version first-party references are recorded, but upstream retrieval timed out or failed for most APIs. Only cAdvisor README's v0.55.1 `/sys` and `/var/lib/docker` mount examples were retrieved; the socket/rootfs details were not confirmed. node-exporter flags/mount, nginx-prometheus-exporter flag/contract, Prometheus v3.16 config, all Grafana v13.3 provisioning schemas, and nginx-log-exporter parser behavior/metric names remain UNVERIFIED. nginx-log-exporter v1.11.0 HCL syntax and -config-file flag are verified by the exact-version sources cited above. No runtime or config validation was performed. Image tags are not runtime evidence.

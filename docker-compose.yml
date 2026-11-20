@@ -430,6 +430,7 @@ services:
     volumes:
       - ./proxy/templates:/etc/nginx/templates:ro
       - ./certs:/etc/nginx/certs:ro
+      - nginx-access-log:/var/log/nginx
     depends_on:
       web-frontend:
         condition: service_started
@@ -441,6 +442,69 @@ services:
         condition: service_started
       mailpit:
         condition: service_started
+
+  # Host metrics: defaults bind to loopback; override only with a private/VPN address.
+  # UNVERIFIED in this run: exact v1.10.2 host-rootfs flag/mount; upstream extraction timed out.
+  # https://github.com/prometheus/node_exporter/blob/v1.10.2/README.md
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.10.2
+    container_name: anki-node-exporter
+    restart: unless-stopped
+    pid: host
+    command: ["--path.rootfs=/host"]
+    ports:
+      - "${NODE_EXPORTER_BIND:-127.0.0.1}:${NODE_EXPORTER_PORT:-9100}:9100"
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - default
+
+  # cAdvisor mounts are based on upstream v0.55.1 README examples for /sys and /var/lib/docker.
+  # Exact Docker socket/rootfs requirements are UNVERIFIED. A read-only socket bind does not make the API read-only.
+  # Keep the endpoint private and firewall it. https://github.com/google/cadvisor/blob/v0.55.1/README.md
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: anki-cadvisor
+    restart: unless-stopped
+    ports:
+      - "${CADVISOR_BIND:-127.0.0.1}:${CADVISOR_PORT:-8088}:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - default
+
+  # UNVERIFIED in this run: v1.5.1 flag and stub_status contract; upstream extraction timed out.
+  # https://github.com/nginx/nginx-prometheus-exporter/blob/v1.5.1/README.md
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.5.1
+    container_name: anki-nginx-exporter
+    restart: unless-stopped
+    command: ["--nginx.scrape-uri=http://proxy:8081/stub_status"]
+    ports:
+      - "${NGINX_EXPORTER_BIND:-127.0.0.1}:${NGINX_EXPORTER_PORT:-9113}:9113"
+    depends_on:
+      - proxy
+    networks:
+      - default
+
+  # VERIFIED v1.11.0 HCL config and -config-file flag; exact upstream references in docs/OBSERVABILITY.md.
+  nginx-log-exporter:
+    image: quay.io/martinhelmich/prometheus-nginxlog-exporter:v1.11.0
+    container_name: anki-nginx-log-exporter
+    restart: unless-stopped
+    command: ["-config-file", "/etc/nginxlog-exporter/config.hcl"]
+    ports:
+      - "${NGINX_LOG_EXPORTER_BIND:-127.0.0.1}:${NGINX_LOG_EXPORTER_PORT:-4040}:4040"
+    volumes:
+      - ./proxy/nginxlog-exporter.hcl:/etc/nginxlog-exporter/config.hcl:ro
+      - nginx-access-log:/var/log/nginx:ro
+    networks:
+      - default
 
   # Let's Encrypt (DNS-01, Selectel): разовый запуск. Профиль acme — `docker compose up` сервис не поднимает.
   # Вызывается acme/renew.sh (Ansible и systemd-таймер anki-acme-renew), обёртка внутри — acme/run.sh.
@@ -469,3 +533,4 @@ volumes:
   postgres-data:
   deck-exports:
   sources:
+  nginx-access-log:

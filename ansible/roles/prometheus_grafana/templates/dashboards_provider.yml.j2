@@ -1,0 +1,14 @@
+# UNVERIFIED exact Grafana 13.3.0 dashboard-provider key schema.
+# https://grafana.com/docs/grafana/v13.3/administration/provisioning/#dashboards
+apiVersion: 1
+
+providers:
+  - name: Infra
+    orgId: 1
+    folder: Infrastructure
+    type: file
+    disableDeletion: false
+    editable: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

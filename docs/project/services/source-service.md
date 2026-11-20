@@ -31,6 +31,13 @@ pdfplumber0.11.10, PaddleOCR3.7.0, PaddlePaddle3.2.2. API evidence:
 `docs/header-vnext-api-evidence.md`. Будущие авторизованные прогоны только docker-vm.
 
 
+## Метрики — phase 1 (static snapshot 2026-11-20)
+
+Observed source (static source inspection, 2026-11-20): `app/main.py` owns one `prometheus_client.CollectorRegistry` per application lifespan and exposes it at service-local `/metrics`. `app/metrics.py`, `app/services.py`, `app/pdf_parser.py`, and `app/ocr.py` record parse-attempt counters/timing; bounded stage timings (`pdf_validation`, `page_processing`, `native_text`, `ocr`, `language_check`, `source_persist`); and OCR call counts/durations for `recognize_full_page`, `recognize_page`, and `recognize_header_candidates`. Outcomes are `success`, `failure`, `lease_lost`; parse error categories are `none`, `validation`, `ocr`, `storage`, `upstream`, `timeout`, `internal`. OCR purpose labels are fixed per entry point. No user/source/book/PDF/text/job identifiers, URLs, query strings, or payloads are metric labels. Counters/histograms are bounded; page count increments only on a directed OCR page. API evidence: `Counter.labels()/inc()`, `Histogram.labels()/observe()`, and the `registry=` parameter were checked against the exact v0.25.0 `prometheus/client_python` source (`prometheus_client/metrics.py`, `registry.py`). `Response.media_type` was checked against the locked Starlette 1.10.0 source (`starlette/responses.py`). Exact-source extraction for `generate_latest()`/`CONTENT_TYPE_LATEST` and FastAPI 0.162.0 `app.get(include_in_schema=...)` did not yield confirmation; these calls are marked UNVERIFIED next to their use. This static inspection does not demonstrate scrapeability or deployment. Container CPU/RAM is intentionally not attributed to OCR.
+
+Infra Prometheus has an optional private `app_source_service_metrics_target` (`host:port`) with scrape path `/metrics`; it is blank by default. Enable only after private routing/firewall reachability is arranged. No public route is added by infra. Target remains per-attempt/per-stage timings only; no upload-to-ready-terms lifecycle duration is claimed.
+
+
 ## Назначение и владение
 Приём PDF, физические страницы, текст/геометрия, OCR и долговечное хранение входа/результатов до разрешённой стадии удаления. Vocab-extractor — потребитель извлечённых страниц. Подробности API — в `source-service/README.md`; focused OCR layout/API evidence — в документах сервиса.
 

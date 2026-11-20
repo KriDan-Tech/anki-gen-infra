@@ -1,9 +1,12 @@
+# UNVERIFIED: exact Grafana 13.3.0 datasource provisioning schema was not verified from upstream docs in this run.
+# https://grafana.com/docs/grafana/v13.3/administration/provisioning/#data-sources
 apiVersion: 1
 
 datasources:
   - name: Prometheus
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
-    editable: true
+    editable: false

@@ -1,0 +1,146 @@
+# UNVERIFIED Grafana 13.3.0 unified-alerting provisioning schema; source page was reachable but target keys were not extractable.
+# https://grafana.com/docs/grafana/v13.3/alerting/set-up/provision-alerting-resources/file-provisioning/
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: infra-critical
+    folder: Infrastructure
+    interval: 1m
+    rules:
+      - uid: infra-target-down
+        title: Exporter target down
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 300, to: 0}
+            model:
+              expr: up{job=~"node-exporter|cadvisor|nginx|nginx-access-log"} == 0
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: C
+              conditions: [{type: query, query: {params: [C]}, reducer: {type: last}, evaluator: {type: gt, params: [0]}, operator: {type: and}, unloadEvaluator: {type: gt, params: [0]}}]
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "A configured exporter target is down"}
+        labels: {severity: critical}
+      - uid: infra-memory-critical
+        title: Host available memory critical
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 300, to: 0}
+            model:
+              expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.05
+              instant: true
+              refId: A
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "Available host memory below 5%"}
+        labels: {severity: critical}
+      - uid: infra-disk-critical
+        title: Host disk space or inodes critical
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 300, to: 0}
+            model:
+              expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"} < 0.05) or (node_filesystem_files_free{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_files{fstype!~"tmpfs|overlay|squashfs"} < 0.05)
+              instant: true
+              refId: A
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "Host filesystem free bytes or inodes below 5%"}
+        labels: {severity: critical}
+      - uid: infra-container-memory
+        title: Container memory near limit
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 300, to: 0}
+            model:
+              expr: (container_memory_working_set_bytes / on(id) container_spec_memory_limit_bytes) > 0.9 and container_spec_memory_limit_bytes > 0
+              instant: true
+              refId: A
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "Container working set above 90% of configured limit"}
+        labels: {severity: warning}
+      - uid: infra-container-restarts
+        title: Container restart observed
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 900, to: 0}
+            model:
+              expr: changes(container_start_time_seconds[15m]) > 0
+              instant: true
+              refId: A
+        for: 0s
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "Container restarted within 15 minutes"}
+        labels: {severity: warning}
+      - uid: infra-container-throttling
+        title: Container CPU throttling
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 300, to: 0}
+            model:
+              expr: rate(container_cpu_cfs_throttled_periods_total[5m]) / clamp_min(rate(container_cpu_cfs_periods_total[5m]), 1) > 0.25
+              instant: true
+              refId: A
+        for: 10m
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "Container CPU throttling above 25%"}
+        labels: {severity: warning}
+      - uid: infra-nginx-5xx
+        title: Nginx 5xx response rate
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 600, to: 0}
+            model:
+              expr: sum(rate(nginxlog_http_response_count_total{status=~"5.."}[5m])) / clamp_min(sum(rate(nginxlog_http_response_count_total[5m])), 0.001) > 0.05
+              instant: true
+              refId: A
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "Nginx 5xx share above 5%"}
+        labels: {severity: critical}
+      - uid: infra-nginx-latency
+        title: Nginx request latency
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange: {from: 600, to: 0}
+            model:
+              expr: histogram_quantile(0.95, sum by (le) (rate(nginxlog_http_response_time_seconds_bucket[5m]))) > 2
+              instant: true
+              refId: A
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        annotations: {summary: "Nginx p95 request latency above 2 seconds"}
+        labels: {severity: warning}

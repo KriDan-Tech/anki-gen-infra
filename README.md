@@ -21,11 +21,29 @@
 | deck-service | build `../deck-service` | — (внутри сети, 8084) | Колоды, экспорт `.apkg` |
 | billing-service | build `../billing-service` | — (внутри сети) | Платежный sandbox ledger в отдельной базе общего PostgreSQL |
 | acme | `goacme/lego:v5.5.2` | — | разовый запуск: выпуск/продление LE |
+| node-exporter / cAdvisor / NGINX exporters | pinned tags in Compose | 9100 / 8088 / 9113 / 4040 (loopback-safe) | private metrics targets |
 
 **Наружу публикуются только gateway (8080), Keycloak (8180) и Mailpit (8025).** Порты сервисов
 (8081–8084) с этапа 6 в compose не публикуются: всё идёт через gateway. Postgres и RabbitMQ пока
 доступны с хоста (см. открытые вопросы в отчёте этапа 6).
 **Redis не используется.** `audio-service` — вне MVP.
+
+## Наблюдаемость (source-only)
+
+Observability manifests are source-controlled in `docs/OBSERVABILITY.md` and
+`ansible/roles/prometheus_grafana`; they are **not deployed/runtime-verified**.
+Exporter and Grafana/Prometheus binds default to loopback; there are no public
+metrics routes. Private/VPN binds, inventory targets, routing and firewall allow
+rules must be configured by the operator; no addresses or ACLs are assumed.
+The optional source-service `/metrics` target is configurable and disabled by
+default. Grafana file-provisioned dashboards/rules may be overwritten on
+provisioning/redeploy; configure a contact point and notification policy once in
+UI if notifications are required. Manual dashboard import: Dashboards → New →
+Import → `ansible/roles/prometheus_grafana/files/dashboards/infra-overview.json`.
+The nginx-log exporter v1.11.0 HCL shape and `-config-file` flag are verified
+against exact-version upstream sources; parser behavior and bounded access-log
+rotation remain unverified/unimplemented. See docs/OBSERVABILITY.md. No deployment
+was run.
 
 ## Запуск
 

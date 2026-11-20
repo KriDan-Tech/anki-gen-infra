@@ -1,3 +1,5 @@
+# UNVERIFIED exact Prometheus v3.16 config API in this run; official docs could not be retrieved.
+# https://prometheus.io/docs/prometheus/3.16/configuration/configuration/
 global:
   scrape_interval: {{ prometheus_scrape_interval }}
 
@@ -6,11 +8,33 @@ scrape_configs:
     static_configs:
       - targets: ['prometheus:9090']
 
+{% if traefik_metrics_target | length > 0 %}
   - job_name: traefik
     scrape_interval: 15s
     metrics_path: /metrics
     static_configs:
+      - targets: ['{{ traefik_metrics_target }}']
+{% endif %}
+{% if source_service_metrics_target | length > 0 %}
+  - job_name: source-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['{{ source_service_metrics_target }}']
+{% endif %}
+
+{% for scrape in prometheus_extra_scrape_targets %}
+{% if scrape.target | length > 0 %}
+  - job_name: {{ scrape.job_name }}
+    static_configs:
+      - targets: ['{{ scrape.target }}']
+{% endif %}
+{% endfor %}
+{% if app_actuator_targets | length > 0 %}
+  - job_name: app-actuator
+    metrics_path: /actuator/prometheus
+    static_configs:
       - targets:
-          - '192.168.0.101:8082'
-
-
+{% for target in app_actuator_targets %}
+          - '{{ target }}'
+{% endfor %}
+{% endif %}

@@ -3,6 +3,10 @@
 # (infra/docker-compose.yml); $host, $remote_addr и т.п. остаются как есть.
 # Маршрутизация использует exact- и prefix-location (включая ^~); regex-location не используются.
 
+# Export bounded operational fields only; no IP, host, URI, headers or payload.
+log_format metrics_safe '$status $request_time $upstream_response_time';
+access_log /var/log/nginx/access.log metrics_safe;
+
 real_ip_header proxy_protocol;
 set_real_ip_from ${TRAEFIK_TRUSTED_CIDR};
 
@@ -12,6 +16,17 @@ geo $realip_remote_addr $trusted_traefik_peer {
 }
 
 # HTTP → HTTPS
+# Internal Docker-network-only status endpoint; no host port or public route.
+server {
+    listen 8081;
+    server_name _;
+    access_log off;
+    location = /stub_status {
+        stub_status;
+        allow all;
+    }
+}
+
 server {
     listen 80 proxy_protocol;
     if ($trusted_traefik_peer = 0) {

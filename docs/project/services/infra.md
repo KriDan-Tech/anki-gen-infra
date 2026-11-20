@@ -9,6 +9,12 @@
 ## Наблюдаемая реализация (2026-11-16)
 Осмотрены `infra/docker-compose.yml`, README, proxy/Ansible/ACME assets (2026-11-16). Локальная ветка `feat/source-durable-progress-2026-11-16` @ed686b5; untracked служебные .serena не включены. Checked-in compose/Ansible — описание желаемой конфигурации, не доказательство того, что deployed. Версии контейнеров закреплены в самих manifests; не выводить operational state из тега образа.
 
+## Наблюдаемость — source-only (осмотр 2026-11-20, branch metrics)
+
+Compose pins node-exporter v1.10.2, cAdvisor v0.55.1, nginx-prometheus-exporter v1.5.1, and nginx-log-exporter v1.11.0 (tags read from Compose; most APIs not upstream-verified in this pass). Binds default to loopback; no public metrics route is added. Ansible optional scrape targets are private inventory inputs, including a configurable source-service `/metrics` target; blank targets are omitted. No private address is guessed and no firewall/routing change was made. The Grafana dashboard directory now has an explicit read-only mount matching the provider path; provisioning files are also read-only. Provisioned dashboard/rule edits may be overwritten; manual dashboard import is documented in `infra/docs/OBSERVABILITY.md`. Configure contact point and notification policy once in Grafana UI if delivery is needed.
+
+NGINX log fields omit IP, host, URI/path/query, headers, user-agent, and payload. The file-based access log `/var/log/nginx/access.log` is shared with nginx-log-exporter using the `nginx-access-log` named volume; no bounded rotation is configured for these external/file-based logs. Rotation/reopen semantics remain UNVERIFIED. Docker stdout/stderr rotation does not cover files in mounted volumes or bind mounts. nginx-log-exporter v1.11.0 configuration is HCL and its `-config-file` flag is verified against exact-version upstream sources (see `infra/docs/OBSERVABILITY.md`); parser behavior and metric names remain UNVERIFIED. cAdvisor's read-only socket mount does not make the Docker API read-only and needs private ACLs. No deployment, runtime, Ansible apply, firewall or network operation was performed.
+
 ## Утверждённая цель
 Инфраструктура обеспечивает backend dependencies и изолированный путь проверки; дальнейшие runtime checks выполняются только на docker-vm. Отдельно учитывать локальные и production credentials/volumes, не переносить секреты в docs.
 
