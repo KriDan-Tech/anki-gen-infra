@@ -22,10 +22,9 @@
 | billing-service | build `../billing-service` | — (внутри сети) | Платежный sandbox ledger в отдельной базе общего PostgreSQL |
 | acme | `goacme/lego:v5.5.2` | — | разовый запуск: выпуск/продление LE |
 | node-exporter / cAdvisor / NGINX exporters | pinned tags in Compose | 9100 / 8088 / 9113 / 4040 (loopback-safe) | private metrics targets |
+| Spring Actuator | six host ports 19090–19095 | 9090 in Java containers; notification remains on 8086 for its health probe | Prometheus scrape (`/actuator/prometheus`) |
 
-**Наружу публикуются только gateway (8080), Keycloak (8180) и Mailpit (8025).** Порты сервисов
-(8081–8084) с этапа 6 в compose не публикуются: всё идёт через gateway. Postgres и RabbitMQ пока
-доступны с хоста (см. открытые вопросы в отчёте этапа 6).
+Публичный application ingress остаётся только через gateway (8080), Keycloak (8180) и Mailpit (8025); порты сервисов (8081–8084) не публикуются. Отдельно Compose публикует Actuator на host-портах 19090–19095 на всех IPv4-интерфейсах для удалённого Prometheus. NAT/firewall нужно настроить так, чтобы эти порты принимали соединения только от metrics-хоста. Postgres и RabbitMQ пока доступны с хоста (см. открытые вопросы в отчёте этапа 6).
 **Redis не используется.** `audio-service` — вне MVP.
 
 ## Наблюдаемость (source-only)
