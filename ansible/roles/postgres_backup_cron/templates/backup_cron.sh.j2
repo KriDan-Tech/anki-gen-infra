@@ -17,7 +17,8 @@ log_file={{ backup_log_file | ansible.builtin.quote }}
 
 #Пустые значения берутся из окружения контейнера.
 dump_args=(-w -Fc)
-backup_dir="$HOME/$(hostname)_backup"
+host=$(hostname -s)
+backup_dir="$HOME/${host}_backup"
 archive_prefix=postgres
 timestamp_format=+%Y%m%dT%H%M%SZ
 gpg_args=(--batch --pinentry-mode loopback --symmetric --cipher-algo AES256)
@@ -39,7 +40,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 archive_name="${work_dir##*/}"
-archive="$backup_dir/${archive_name#.}.tar.gpg"
+archive_name="${archive_name#.}.tar.gpg"
+archive="$backup_dir/$archive_name"
 mkdir -- "$work_dir/dumps"
 
 docker_env=()
@@ -65,7 +67,7 @@ tar -C "$work_dir/dumps" -cf - . |
     gpg "${gpg_args[@]}" --passphrase-file "$password_file" --output "$work_dir/backup.tar.gpg"
 
 mv -- "$work_dir/backup.tar.gpg" "$archive"
-rclone --config /etc/rclone/rclone.conf copyto --no-check-dest --s3-no-head "${remote%/}/$host/$archive_name"
+rclone --config /etc/rclone/rclone.conf copyto --no-check-dest --s3-no-head "$archive" "${remote%/}/$host/$archive_name"
 printf 'Бэкап загружен: %s\n' "$archive"
 
 rm -- "$archive"
