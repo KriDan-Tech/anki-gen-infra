@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+# Настройки
+#DBs=(app keycloak)
+docker_cmd=(docker)
+#container=anki-postgres
+
+DBs=({{ backup_databases | map('ansible.builtin.quote') | join(' ') }})
+container={{ backup_postgres_container | ansible.builtin.quote }}
+postgres_user={{ backup_postgres_user | default('') | ansible.builtin.quote }}
+postgres_password={{ backup_postgres_password | default('') | ansible.builtin.quote }}
+password_file={{ backup_archive_password_file | ansible.builtin.quote }}
+remote={{ backup_rclone_remote | ansible.builtin.quote }}
+log_file={{ backup_log_file | ansible.builtin.quote }}
+
+#Пустые значения берутся из окружения контейнера.
+dump_args=(-w -Fc)
+backup_dir="$HOME/$(hostname)_backup"
+archive_prefix=postgres
+timestamp_format=+%Y%m%dT%H%M%SZ
+gpg_args=(--batch --pinentry-mode loopback --symmetric --cipher-algo AES256)
+
+rclone_args=()
+
+exec >> "$log_file" 2>&1
+
+if [[ -z "${DBs[0]:-}" ]]; then
+    printf 'Укажи хотя бы одну базу в DBs.\n' >&2
+    exit 1
+fi
+
+mkdir -p -- "$backup_dir"
+timestamp=$(date -u "$timestamp_format")
+work_dir=$(mktemp -d "$backup_dir/.$archive_prefix-$timestamp-XXXXXX")
+trap 'rm -rf -- "$work_dir"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+archive_name="${work_dir##*/}"
+archive="$backup_dir/${archive_name#.}.tar.gpg"
+mkdir -- "$work_dir/dumps"
+
+docker_env=()
+if [[ -n "$postgres_user" ]]; then
+    docker_env+=(-e "POSTGRES_USER=$postgres_user")
+fi
+if [[ -n "$postgres_password" ]]; then
+    docker_env+=(-e "POSTGRES_PASSWORD=$postgres_password")
+fi
+
+for db in "${DBs[@]}"; do
+    if [[ ! "$db" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+        printf 'Недопустимое имя базы: %s\n' "$db" >&2
+        exit 1
+    fi
+    "${docker_cmd[@]}" exec "${docker_env[@]}" "$container" sh -ec '
+        PGPASSWORD="$POSTGRES_PASSWORD" \
+            exec pg_dump -U "$POSTGRES_USER" "$@"
+    ' sh "${dump_args[@]}" --dbname="$db" > "$work_dir/dumps/$db.dump"
+done
+
+tar -C "$work_dir/dumps" -cf - . |
+    gpg "${gpg_args[@]}" --passphrase-file "$password_file" --output "$work_dir/backup.tar.gpg"
+
+mv -- "$work_dir/backup.tar.gpg" "$archive"
+rclone --config /etc/rclone/rclone.conf copyto --no-check-dest --s3-no-head "${remote%/}/$host/$archive_name"
+printf 'Бэкап загружен: %s\n' "$archive"
+
+rm -- "$archive"
+printf '[%s] Локальный архив удален: %s\n' "$(date -Is)" "$archive"

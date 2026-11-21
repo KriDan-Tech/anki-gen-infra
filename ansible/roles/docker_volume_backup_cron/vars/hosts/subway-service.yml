@@ -1,0 +1,7 @@
+backup_volume_containers:
+  - name: stalwart
+    volumes: [stalwart_stalwart-etc, stalwart_stalwart-data]
+
+# Каждые 4 часа — 00:00, 04:00, 08:00 и так далее
+volume_backup_schedule_unit: days
+volume_backup_schedule_every: 7

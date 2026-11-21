@@ -1,0 +1,58 @@
+- name: Проверить интервал бэкапа
+  ansible.builtin.assert:
+    that:
+      - "(backup_interval_hours | string) in ['1', '2', '3', '4', '6', '8', '12', '24']"
+    fail_msg: "backup_interval_hours должен быть 1, 2, 3, 4, 6, 8, 12 или 24."
+
+- name: Создать каталог для логов бэкапа
+  become: true
+  ansible.builtin.file:
+    path: "{{ backup_log_file | dirname }}"
+    state: directory
+    owner: "{{ backup_run_user }}"
+    mode: "0750"
+
+- name: Проверить, что пароль архива загружен
+  ansible.builtin.assert:
+    that:
+      - (backup_archive_secret | default('') | length) > 0
+    fail_msg: "Переменная backup_archive_secret отсутствует или пуста."
+    quiet: true
+
+- name: Создать каталог для пароля архива
+  become: true
+  ansible.builtin.file:
+    path: "{{ backup_archive_password_file | dirname }}"
+    state: directory
+    owner: "{{ backup_run_user }}"
+    mode: "0700"
+
+- name: Установить пароль для шифрования архивов
+  become: true
+  ansible.builtin.copy:
+    content: "{{ backup_archive_secret }}"
+    dest: "{{ backup_archive_password_file }}"
+    owner: "{{ backup_run_user }}"
+    mode: "0600"
+  no_log: true
+  diff: false
+
+- name: Установить скрипт бэкапа PostgreSQL
+  become: true
+  ansible.builtin.template:
+    src: backup_cron.sh.j2
+    dest: /usr/local/bin/postgres-backup.sh
+    owner: "{{ backup_run_user }}"
+    mode: "0700"
+    validate: "/bin/bash -n %s"
+  no_log: true
+  diff: false
+
+- name: Добавить бэкап PostgreSQL в cron
+  become: true
+  ansible.builtin.cron:
+    name: "Бэкап PostgreSQL"
+    user: "{{ backup_run_user }}"
+    minute: "0"
+    hour: "{{ '0' if (backup_interval_hours | int) == 24 else '*/' ~ (backup_interval_hours | int) }}"
+    job: /usr/local/bin/postgres-backup.sh

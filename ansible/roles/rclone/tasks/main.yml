@@ -1,0 +1,61 @@
+- name: Загрузить настройки S3 из Vault
+  ansible.builtin.include_vars:
+    file: s3.vault.yml
+  no_log: true
+
+- name: Удалить старый пакет rclone
+  become: true
+  ansible.builtin.apt:
+    name: rclone
+    state: absent
+
+- name: Установить unzip
+  become: true
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+
+- name: Скачать официальный архив rclone
+  become: true
+  ansible.builtin.get_url:
+    url: "https://downloads.rclone.org/v{{ rclone_version }}/rclone-v{{ rclone_version }}-linux-amd64.zip"
+    dest: "/var/cache/rclone-v{{ rclone_version }}-linux-amd64.zip"
+    mode: "0644"
+
+- name: Распаковать rclone
+  become: true
+  ansible.builtin.unarchive:
+    src: "/var/cache/rclone-v{{ rclone_version }}-linux-amd64.zip"
+    dest: /var/cache
+    remote_src: true
+    creates: "/var/cache/rclone-v{{ rclone_version }}-linux-amd64/rclone"
+
+- name: Установить бинарник rclone
+  become: true
+  ansible.builtin.copy:
+    src: "/var/cache/rclone-v{{ rclone_version }}-linux-amd64/rclone"
+    dest: /usr/local/bin/rclone
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Создать каталог конфигурации rclone
+  become: true
+  ansible.builtin.file:
+    path: /etc/rclone
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write config of rclone
+  become: true
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: /etc/rclone/rclone.conf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  diff: false

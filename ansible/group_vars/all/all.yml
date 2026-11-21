@@ -48,4 +48,7 @@ docker_users:
   - deploy
 
 
-
+backup_archive_password_file: /etc/backup/archive.pass
+backup_rclone_remote: "selectel:ecb-backups/backups"
+backup_log_file: /var/log/backup_cron/backup.log
+backup_run_user: root

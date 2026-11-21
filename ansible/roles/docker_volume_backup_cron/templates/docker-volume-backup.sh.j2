@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+# Настройки Ansible
+containers=({{ backup_volume_containers | map(attribute='name') | map('ansible.builtin.quote') | join(' ') }})
+volumes=({{ backup_volume_containers | map(attribute='volumes') | list | ansible.builtin.flatten | map('ansible.builtin.quote') | join(' ') }})
+docker_cmd=({{ backup_volume_docker_cmd | default(['docker']) | map('ansible.builtin.quote') | join(' ') }})
+password_file={{ backup_archive_password_file | ansible.builtin.quote }}
+remote={{ backup_rclone_remote | ansible.builtin.quote }}
+log_file={{ backup_log_file | default('') | ansible.builtin.quote }}
+
+# Каталог бэкапов на хосте
+host=$(hostname -s)
+backup_dir="$HOME/${host}_backup"
+helper_image=alpine:3
+stop_timeout=60
+
+if [[ -n "$log_file" ]]; then
+    exec >> "$log_file" 2>&1
+fi
+printf '[%s] Бэкап томов на %s\n' "$(date -Is)" "$host"
+
+if [[ -z "${volumes[0]:-}" || -z "${containers[0]:-}" ]]; then
+    printf 'Укажи контейнеры и тома для бэкапа.\n' >&2
+    exit 1
+fi
+
+mount_args=()
+for volume in "${volumes[@]}"; do
+    "${docker_cmd[@]}" volume inspect -- "$volume" >/dev/null
+    mount_args+=(--mount "type=volume,source=$volume,target=/backup/$volume,readonly")
+done
+
+if [[ ! -r "$password_file" || ! -s "$password_file" ]]; then
+    printf 'Не удалось прочитать файл с паролем: %s\n' "$password_file" >&2
+    exit 1
+fi
+
+mkdir -p -- "$backup_dir"
+work_dir=$(mktemp -d "$backup_dir/.volumes-XXXXXX")
+archive_name="volumes-$(date -u +%Y%m%dT%H%M%SZ)-${work_dir##*-}.tar.gpg"
+archive="$backup_dir/$archive_name"
+stopped_containers=()
+
+restart_containers() {
+    local container
+    local failed=0
+    local remaining=()
+    for container in "${stopped_containers[@]}"; do
+        if ! "${docker_cmd[@]}" start "$container" >/dev/null; then
+            printf 'Не удалось запустить %s\n' "$container" >&2
+            remaining+=("$container")
+            failed=1
+        fi
+    done
+    stopped_containers=("${remaining[@]}")
+    return "$failed"
+}
+
+cleanup() {
+    restart_containers || true
+    rm -rf -- "$work_dir"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# Подготовить образ до остановки сервиса.
+"${docker_cmd[@]}" image inspect "$helper_image" >/dev/null 2>&1 ||
+    "${docker_cmd[@]}" pull "$helper_image"
+
+running_containers=()
+for container in "${containers[@]}"; do
+    running=$("${docker_cmd[@]}" inspect --type container --format '{% raw %}{{.State.Running}}{% endraw %}' "$container")
+    if [[ "$running" == true ]]; then
+        running_containers+=("$container")
+    fi
+done
+
+for container in "${running_containers[@]}"; do
+    stopped_containers+=("$container")
+    "${docker_cmd[@]}" stop --time "$stop_timeout" "$container" >/dev/null
+done
+
+"${docker_cmd[@]}" run --rm "${mount_args[@]}" "$helper_image" \
+    tar -C /backup -cf - -- . |
+    gpg --batch --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+        --passphrase-file "$password_file" --output "$work_dir/backup.tar.gpg"
+
+mv -- "$work_dir/backup.tar.gpg" "$archive"
+restart_containers
+rclone --config /etc/rclone/rclone.conf copyto --no-check-dest --s3-no-head "$archive" "${remote%/}/$host/$archive_name"
+printf '[%s] Архив загружен: %s\n' "$(date -Is)" "$archive"
+
+rm -- "$archive"
+printf '[%s] Локальный архив удален: %s\n' "$(date -Is)" "$archive"

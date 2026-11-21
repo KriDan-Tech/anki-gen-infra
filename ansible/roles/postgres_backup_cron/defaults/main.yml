@@ -1,0 +1,13 @@
+backup_databases:
+  - keycloak_db
+  - source_sandbox_db
+  - extractor_sandbox_db
+  - builder_sandbox_db
+  - deck_sandbox_db
+  - billing_sandbox_db
+  - notification_sandbox_db
+
+backup_postgres_container: anki-postgres
+backup_postgres_user: ""
+backup_postgres_password: ""
+backup_interval_hours: 4

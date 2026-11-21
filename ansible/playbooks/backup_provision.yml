@@ -1,0 +1,20 @@
+- name: Deploy rclone
+  hosts: all
+  become: true
+  roles:
+    - role: rclone
+      tags: rclone
+
+- name: Backup postgres cron install
+  hosts: anki-gen-prod
+  become: true
+  roles:
+    - role: postgres_backup_cron
+      tags: postgres_backup_cron
+
+- name: Backup docker volume cron install
+  hosts: subway-service, ecb-metrics
+  become: true
+  roles:
+    - role: docker_volume_backup_cron
+      tags: docker_volume_backup_cron
