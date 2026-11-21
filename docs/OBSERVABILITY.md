@@ -1,6 +1,6 @@
 # Observability provisioning
 
-Static configuration snapshot on branch `metrics` (2026-11-20). Nothing in this change was deployed, started, or runtime-verified. These files do not establish target reachability, metric availability, alert delivery, or deployed state.
+Static configuration snapshot on branch `metrics` (2026-11-21). Nothing in this change was deployed, started, or runtime-verified. These files do not establish target reachability, metric availability, alert delivery, or deployed state.
 
 ## Exporters and private scrape routing
 
@@ -8,7 +8,7 @@ The app Compose stack pins node-exporter `v1.10.2`, cAdvisor `v0.55.1`, nginx-pr
 
 Set Ansible inventory variables `app_node_exporter_target`, `app_cadvisor_target`, `app_nginx_exporter_target`, and `app_nginx_log_exporter_target` to private `host:port` values; blank values omit those jobs. Optional `app_actuator_targets` configures the application actuator job only when endpoints actually exist. `app_source_service_metrics_target` is an independent optional private `host:port` target scraped at `/metrics`; it is blank by default and creates no public route. `app_traefik_metrics_target` is optional too (replaces a former hard-coded address). Ensure source-service itself exposes that route on the private network before setting its target.
 
-The app Compose file now configures a dedicated Spring management listener at container port 9090 and publishes six host ports: API Gateway 19090, billing 19091, card-builder 19092, deck-service 19093, notification 19094, vocab-extractor 19095. Notification remains on container port 8086 to preserve its Docker health probe; it exposes Actuator only. These mappings bind to `0.0.0.0` as requested for remote scraping. This is only a Compose publication: the Ansible Prometheus inventory still must list the reachable address and matching port in `app_actuator_targets`, and router NAT/host firewall must permit traffic only from the metrics host. No firewall or router changes are included, and nothing here proves deployed state.
+The app Compose file now configures a dedicated Spring management listener at container port 9090 and publishes six host ports: API Gateway 19090, billing 19091, card-builder 19092, deck-service 19093, notification 19094, vocab-extractor 19095. Notification remains on container port 8086 to preserve its Docker health probe; it exposes Actuator only. These mappings bind to `0.0.0.0` as requested for remote scraping. `ansible/host_vars/ecb-metrics.yml` configures Prometheus targets at `192.168.0.115:19090`–`:19095`. This is only source configuration: the private route must exist from the metrics host, and router NAT/host firewall must permit traffic only from that metrics host. No firewall or router changes are included, and nothing here proves deployed state.
 
 The cAdvisor Docker socket bind is marked read-only, but that does not make the Docker API itself read-only. Its endpoint must remain private and tightly firewalled. Grafana and Prometheus host binds default to loopback.
 

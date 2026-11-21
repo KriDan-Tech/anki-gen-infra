@@ -1,0 +1,9 @@
+# Targets on the application host; Compose publishes the management endpoints
+# on these host ports. Keep the reachability restricted to this metrics host.
+app_actuator_targets:
+  - 192.168.0.115:19090 # api-gateway
+  - 192.168.0.115:19091 # billing-service
+  - 192.168.0.115:19092 # card-builder
+  - 192.168.0.115:19093 # deck-service
+  - 192.168.0.115:19094 # notification
+  - 192.168.0.115:19095 # vocab-extractor
