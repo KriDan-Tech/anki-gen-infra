@@ -1,0 +1,27 @@
+- name: Rclone install
+  become: true
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create config directory of rclone
+  become: true
+  ansible.builtin.file:
+    path: /etc/rclone
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write config of rclone
+  become: true
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: /etc/rclone/rclone.conf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  diff: false
