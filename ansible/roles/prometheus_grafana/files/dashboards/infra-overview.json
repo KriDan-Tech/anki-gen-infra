@@ -16,21 +16,68 @@
   "panels": [
     {
       "id": 1,
-      "title": "Exporter targets",
+      "title": "Application services — scrape status",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "Instant Prometheus scrape state. UP/DOWN comes from up; service is preferred, with instance visible for older targets without a service label.",
       "targets": [
         {
-          "expr": "up",
-          "legendFormat": "{{job}} {{instance}}",
-          "refId": "A"
+          "expr": "up{job=\"app-actuator\"}",
+          "legendFormat": "{{service}} {{instance}}",
+          "refId": "A",
+          "instant": true
         }
       ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "orientation": "horizontal",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN"
+                },
+                "1": {
+                  "text": "UP"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 5,
+        "h": 6,
         "w": 24,
         "x": 0,
         "y": 0
@@ -38,112 +85,339 @@
     },
     {
       "id": 2,
-      "title": "Host CPU busy",
+      "title": "Application scrape duration",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "Scrape duration reported by Prometheus for configured Actuator targets.",
       "targets": [
         {
-          "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
-          "legendFormat": "{{instance}}",
+          "expr": "scrape_duration_seconds{job=\"app-actuator\"}",
+          "legendFormat": "{{service}}",
           "refId": "A"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 5
+        "y": 6
       }
     },
     {
       "id": 3,
-      "title": "Host available memory",
+      "title": "Application samples scraped",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "Number of samples ingested per successful scrape, reported by Prometheus.",
       "targets": [
         {
-          "expr": "node_memory_MemAvailable_bytes",
-          "legendFormat": "{{instance}}",
+          "expr": "scrape_samples_scraped{job=\"app-actuator\"}",
+          "legendFormat": "{{service}}",
           "refId": "A"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 5
+        "y": 6
       }
     },
     {
-      "id": 4,
-      "title": "Container CPU",
-      "type": "timeseries",
+      "id": 11,
+      "title": "Prometheus self health",
+      "type": "stat",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "Prometheus scrape status for its own endpoint.",
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total[5m])",
-          "legendFormat": "{{name}}",
+          "expr": "up{job=\"prometheus\"}",
+          "instant": true,
+          "legendFormat": "Prometheus",
           "refId": "A"
         }
       ],
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 13
-      }
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "DOWN"},
+                "1": {"text": "UP"}
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14}
     },
     {
-      "id": 5,
-      "title": "Nginx HTTP responses by status",
-      "type": "timeseries",
+      "id": 10,
+      "title": "Optional exporters — configuration and reachability",
+      "type": "stat",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "NOT CONFIGURED means this Prometheus job has no active target; DOWN means configured but scrape failed; UP means scrape succeeded. A just-added target may appear not configured until its first scrape. For DOWN, inspect Prometheus Status → Targets and the target's Last scrape error. These four jobs correspond to optional inventory variables.",
       "targets": [
         {
-          "expr": "sum by(status) (rate(nginxlog_http_response_count_total[5m]))",
-          "legendFormat": "{{status}}",
+          "expr": "label_replace((2 + min(up{job=\"node-exporter\"})) or vector(0), \"job\", \"node-exporter\", \"\", \"\") or label_replace((2 + min(up{job=\"cadvisor\"})) or vector(0), \"job\", \"cadvisor\", \"\", \"\") or label_replace((2 + min(up{job=\"nginx\"})) or vector(0), \"job\", \"nginx\", \"\", \"\") or label_replace((2 + min(up{job=\"nginx-access-log\"})) or vector(0), \"job\", \"nginx-access-log\", \"\", \"\")",
+          "instant": true,
+          "legendFormat": "{{job}}",
           "refId": "A"
         }
       ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "orientation": "horizontal",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2
+              },
+              {
+                "color": "green",
+                "value": 3
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "NOT CONFIGURED"
+                },
+                "2": {
+                  "text": "DOWN"
+                },
+                "3": {
+                  "text": "UP"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 13
+        "h": 6,
+        "w": 18,
+        "x": 6,
+        "y": 14
       }
     },
     {
-      "id": 6,
-      "title": "Nginx p95 request latency",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
+      "id": 9,
+      "title": "Optional host, container, and NGINX exporter metrics",
+      "type": "row",
+      "collapsed": true,
+      "panels": [
         {
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(nginxlog_http_response_time_seconds_bucket[5m])))",
-          "legendFormat": "p95",
-          "refId": "A"
+          "id": 4,
+          "title": "Host exporter — CPU busy (node-exporter required)",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Optional: configure a reachable node-exporter target; this chart is hidden in a collapsed row by default.",
+          "targets": [
+            {
+              "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 21
+          }
+        },
+        {
+          "id": 5,
+          "title": "Host exporter — available memory (node-exporter required)",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Optional node-exporter metric.",
+          "targets": [
+            {
+              "expr": "node_memory_MemAvailable_bytes",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 21
+          }
+        },
+        {
+          "id": 6,
+          "title": "Container exporter — CPU (cAdvisor required)",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Optional cAdvisor metric.",
+          "targets": [
+            {
+              "expr": "rate(container_cpu_usage_seconds_total[5m])",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 29
+          }
+        },
+        {
+          "id": 7,
+          "title": "NGINX log exporter — responses by status",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Optional nginx-log-exporter metric.",
+          "targets": [
+            {
+              "expr": "sum by(status) (rate(nginx_http_response_count_total[5m]))",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ],
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 29
+          }
+        },
+        {
+          "id": 8,
+          "title": "NGINX log exporter — p95 request latency",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Optional nginx-log-exporter metric.",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by(le) (rate(nginx_http_response_time_seconds_bucket[5m])))",
+              "legendFormat": "p95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 37
+          }
         }
       ],
       "gridPos": {
-        "h": 8,
+        "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 20
       }
     }
   ]

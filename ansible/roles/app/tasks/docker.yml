@@ -7,7 +7,7 @@
     wait: true
     remove_orphans: true
 
-# bind-mount конфига и сертификата compose не отслеживает: без рестарта proxy новые файлы не применятся
+# Compose не отслеживает bind-mount конфигов и сертификатов: рестарт применяет синхронизированные изменения.
 - name: Перезапустить proxy при смене конфига или сертификата
   community.docker.docker_compose_v2:
     project_src: "{{ app_dir }}"
@@ -16,3 +16,11 @@
     state: restarted
   # default({}): при запуске только --tags docker регистраций из preparation/certs нет
   when: (app_proxy_conf | default({})) is changed or (app_tls_active_crt | default({})) is changed or (app_tls_active_key | default({})) is changed
+
+- name: Перезапустить metrics-proxy при смене его конфигурации
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    services:
+      - metrics-proxy
+    state: restarted
+  when: (app_proxy_conf | default({})) is changed

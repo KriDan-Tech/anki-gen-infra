@@ -1,9 +1,17 @@
-# Targets on the application host; Compose publishes the management endpoints
-# on these host ports. Keep the reachability restricted to this metrics host.
+# Targets use the dedicated metrics-proxy host ports; firewall/ACL must permit only this
+# metrics host. Preserve service labels for readable dashboard health status.
+# Configure METRICS_ALLOWED_CIDR on app host with the actual scraper source CIDR; do not
+# infer that source from these target destinations.
 app_actuator_targets:
-  - 192.168.0.115:19090 # api-gateway
-  - 192.168.0.115:19091 # billing-service
-  - 192.168.0.115:19092 # card-builder
-  - 192.168.0.115:19093 # deck-service
-  - 192.168.0.115:19094 # notification
-  - 192.168.0.115:19095 # vocab-extractor
+  - service: api-gateway
+    target: 192.168.0.115:19090
+  - service: billing-service
+    target: 192.168.0.115:19091
+  - service: card-builder
+    target: 192.168.0.115:19092
+  - service: deck-service
+    target: 192.168.0.115:19093
+  - service: notification
+    target: 192.168.0.115:19094
+  - service: vocab-extractor
+    target: 192.168.0.115:19095

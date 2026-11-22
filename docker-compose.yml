@@ -173,8 +173,6 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8082
-      MANAGEMENT_SERVER_PORT: 9090
-      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       EXTRACTOR_DB_NAME: extractor_sandbox_db
@@ -200,8 +198,6 @@ services:
       SOURCE_SERVICE_URL: http://source-service:8081
       BILLING_SERVICE_URL: http://billing-service:8085
       BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
-    ports:
-      - "0.0.0.0:19095:9090"
     depends_on:
       postgres:
         condition: service_healthy
@@ -220,8 +216,6 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8083
-      MANAGEMENT_SERVER_PORT: 9090
-      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       BUILDER_DB_NAME: builder_sandbox_db
@@ -242,8 +236,6 @@ services:
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-}
       AI_MAX_WORDS_PER_BUILD: ${AI_MAX_WORDS_PER_BUILD:-2000}
       AI_TRANSLATE_CONTEXT: ${AI_TRANSLATE_CONTEXT:-true}
-    ports:
-      - "0.0.0.0:19092:9090"
     depends_on:
       postgres:
         condition: service_healthy
@@ -260,8 +252,6 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8084
-      MANAGEMENT_SERVER_PORT: 9090
-      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       BILLING_INTERNAL_SECRET: ${BILLING_INTERNAL_SECRET:?Set internal usage secret}
@@ -280,8 +270,6 @@ services:
       VOCAB_EXTRACTOR_URL: http://vocab-extractor:8082
       # готовые .apkg (этап 2)
       EXPORT_DIR: /data/exports
-    ports:
-      - "0.0.0.0:19093:9090"
     volumes:
       - deck-exports:/data/exports
     depends_on:
@@ -321,9 +309,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-}
-    # Notification exposes only Actuator HTTP endpoints; keep port 8086 because its Docker HEALTHCHECK probes it.
-    ports:
-      - "0.0.0.0:19094:8086"
+    # Notification keeps its existing health-check listener; it is reachable only on the compose network.
     depends_on:
       postgres:
         condition: service_healthy
@@ -358,7 +344,6 @@ services:
       SERVER_FORWARD_HEADERS_STRATEGY: framework
     ports:
       - "127.0.0.1:8080:8080"
-      - "0.0.0.0:19090:9090"
     depends_on:
       keycloak:
         condition: service_started
@@ -376,8 +361,6 @@ services:
       context: ./anki-gen-billing-service
     restart: unless-stopped
     environment:
-      MANAGEMENT_SERVER_PORT: 9090
-      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
       BILLING_DB_HOST: postgres
       BILLING_DB_NAME: billing_sandbox_db
       BILLING_DB_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
@@ -398,8 +381,6 @@ services:
       KEYCLOAK_INTERNAL_ADMIN_URL: http://keycloak:8080/auth/admin
       PUBLIC_HOST: ${PUBLIC_HOST}
       KEYCLOAK_INTERNAL_ISSUER: http://keycloak:8080/auth/realms/anki-gen
-    ports:
-      - "0.0.0.0:19091:9090"
     depends_on:
       postgres:
         condition: service_healthy
@@ -423,6 +404,30 @@ services:
     depends_on:
       api-gateway:
         condition: service_started
+
+  # Metrics-only listener: published Actuator access is allowlisted and restricted to exact GET path.
+  metrics-proxy:
+    image: nginx:1.30.6-alpine
+    container_name: anki-metrics-proxy
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:19090:9090"
+      - "0.0.0.0:19091:9091"
+      - "0.0.0.0:19092:9092"
+      - "0.0.0.0:19093:9093"
+      - "0.0.0.0:19094:9094"
+      - "0.0.0.0:19095:9095"
+    environment:
+      METRICS_ALLOWED_CIDR: ${METRICS_ALLOWED_CIDR:-127.0.0.1/32}
+    volumes:
+      - ./proxy/metrics-templates:/etc/nginx/templates:ro
+    depends_on:
+      - api-gateway
+      - billing-service
+      - card-builder
+      - deck-service
+      - notification
+      - vocab-extractor
 
   # Единая точка входа стенда: TLS на 443, 80 → 301 на https. Конфиг — proxy/templates/default.conf.template,
   # подстановка переменных делает штатный envsubst образа nginx. Сертификат — ./certs/tls.{crt,key}: самоподписанный (Ansible)

@@ -33,8 +33,16 @@ scrape_configs:
   - job_name: app-actuator
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets:
-{% for target in app_actuator_targets %}
-          - '{{ target }}'
+{% for endpoint in app_actuator_targets %}
+{% if endpoint is mapping %}
+{% set target_address = endpoint.target %}
+{% set service_name = endpoint.service | default(endpoint.target) %}
+{% else %}
+{% set target_address = endpoint %}
+{% set service_name = endpoint %}
+{% endif %}
+      - targets: ['{{ target_address }}']
+        labels:
+          service: '{{ service_name }}'
 {% endfor %}
 {% endif %}

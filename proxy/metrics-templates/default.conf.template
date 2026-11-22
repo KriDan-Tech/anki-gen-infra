@@ -1,0 +1,105 @@
+# NGINX metrics-only reverse proxy. Docker's embedded DNS is queried at request time
+# so service replacement/IP changes do not leave cached startup addresses.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+server {
+    listen 9090;
+    server_name _;
+    location = /actuator/prometheus {
+        allow ${METRICS_ALLOWED_CIDR};
+        deny all;
+        if ($request_method != GET) { return 405; }
+        set $metrics_upstream api-gateway:9090;
+        proxy_pass http://$metrics_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header Forwarded "";
+    }
+    location / { return 404; }
+}
+
+server {
+    listen 9091;
+    server_name _;
+    location = /actuator/prometheus {
+        allow ${METRICS_ALLOWED_CIDR};
+        deny all;
+        if ($request_method != GET) { return 405; }
+        set $metrics_upstream billing-service:8085;
+        proxy_pass http://$metrics_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header Forwarded "";
+    }
+    location / { return 404; }
+}
+
+server {
+    listen 9092;
+    server_name _;
+    location = /actuator/prometheus {
+        allow ${METRICS_ALLOWED_CIDR};
+        deny all;
+        if ($request_method != GET) { return 405; }
+        set $metrics_upstream card-builder:8083;
+        proxy_pass http://$metrics_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header Forwarded "";
+    }
+    location / { return 404; }
+}
+
+server {
+    listen 9093;
+    server_name _;
+    location = /actuator/prometheus {
+        allow ${METRICS_ALLOWED_CIDR};
+        deny all;
+        if ($request_method != GET) { return 405; }
+        set $metrics_upstream deck-service:8084;
+        proxy_pass http://$metrics_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header Forwarded "";
+    }
+    location / { return 404; }
+}
+
+server {
+    listen 9094;
+    server_name _;
+    location = /actuator/prometheus {
+        allow ${METRICS_ALLOWED_CIDR};
+        deny all;
+        if ($request_method != GET) { return 405; }
+        set $metrics_upstream notification:8086;
+        proxy_pass http://$metrics_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header Forwarded "";
+    }
+    location / { return 404; }
+}
+
+server {
+    listen 9095;
+    server_name _;
+    location = /actuator/prometheus {
+        allow ${METRICS_ALLOWED_CIDR};
+        deny all;
+        if ($request_method != GET) { return 405; }
+        set $metrics_upstream vocab-extractor:8082;
+        proxy_pass http://$metrics_upstream/actuator/prometheus;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header Forwarded "";
+    }
+    location / { return 404; }
+}
