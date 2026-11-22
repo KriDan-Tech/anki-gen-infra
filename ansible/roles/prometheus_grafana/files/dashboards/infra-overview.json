@@ -16,37 +16,24 @@
   "panels": [
     {
       "id": 1,
-      "title": "Application services — scrape status",
+      "title": "Application service health",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Instant Prometheus scrape state. UP/DOWN comes from up; service is preferred, with instance visible for older targets without a service label.",
+      "description": "Instant scrape state for configured Actuator targets, identified by service or address when unnamed. DOWN indicates a failed scrape.",
       "targets": [
         {
-          "expr": "up{job=\"app-actuator\"}",
-          "legendFormat": "{{service}} {{instance}}",
+          "expr": "up{job=\"app-actuator\",service!=\"\"} or label_replace(up{job=\"app-actuator\",service=\"\"}, \"service\", \"$1\", \"instance\", \"(.+)\")",
+          "legendFormat": "{{service}}",
           "refId": "A",
           "instant": true
         }
       ],
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "orientation": "horizontal",
-        "wideLayout": true
-      },
       "fieldConfig": {
         "defaults": {
+          "unit": "short",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -76,138 +63,6 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      }
-    },
-    {
-      "id": 2,
-      "title": "Application scrape duration",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Scrape duration reported by Prometheus for configured Actuator targets.",
-      "targets": [
-        {
-          "expr": "scrape_duration_seconds{job=\"app-actuator\"}",
-          "legendFormat": "{{service}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      }
-    },
-    {
-      "id": 3,
-      "title": "Application samples scraped",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Number of samples ingested per successful scrape, reported by Prometheus.",
-      "targets": [
-        {
-          "expr": "scrape_samples_scraped{job=\"app-actuator\"}",
-          "legendFormat": "{{service}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      }
-    },
-    {
-      "id": 11,
-      "title": "Prometheus self health",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Prometheus scrape status for its own endpoint.",
-      "targets": [
-        {
-          "expr": "up{job=\"prometheus\"}",
-          "instant": true,
-          "legendFormat": "Prometheus",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {"color": "red", "value": null},
-              {"color": "green", "value": 1}
-            ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {"text": "DOWN"},
-                "1": {"text": "UP"}
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14}
-    },
-    {
-      "id": 10,
-      "title": "Optional exporters — configuration and reachability",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "NOT CONFIGURED means this Prometheus job has no active target; DOWN means configured but scrape failed; UP means scrape succeeded. A just-added target may appear not configured until its first scrape. For DOWN, inspect Prometheus Status → Targets and the target's Last scrape error. These four jobs correspond to optional inventory variables.",
-      "targets": [
-        {
-          "expr": "label_replace((2 + min(up{job=\"node-exporter\"})) or vector(0), \"job\", \"node-exporter\", \"\", \"\") or label_replace((2 + min(up{job=\"cadvisor\"})) or vector(0), \"job\", \"cadvisor\", \"\", \"\") or label_replace((2 + min(up{job=\"nginx\"})) or vector(0), \"job\", \"nginx\", \"\", \"\") or label_replace((2 + min(up{job=\"nginx-access-log\"})) or vector(0), \"job\", \"nginx-access-log\", \"\", \"\")",
-          "instant": true,
-          "legendFormat": "{{job}}",
-          "refId": "A"
-        }
-      ],
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -222,49 +77,704 @@
         "orientation": "horizontal",
         "wideLayout": true
       },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      }
+    },
+    {
+      "id": 12,
+      "title": "API gateway requests / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Request throughput from the API gateway HTTP server request timer; Actuator endpoints are excluded.",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app-actuator\",service=\"api-gateway\",uri!~\"/actuator(/.*)?\"}[$__rate_interval]))",
+          "legendFormat": "requests/s",
+          "refId": "A"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 2
-              },
-              {
-                "color": "green",
-                "value": 3
-              }
-            ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "NOT CONFIGURED"
-                },
-                "2": {
-                  "text": "DOWN"
-                },
-                "3": {
-                  "text": "UP"
-                }
-              }
-            }
-          ]
+          "unit": "reqps"
         },
         "overrides": []
       },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "gridPos": {
-        "h": 6,
-        "w": 18,
-        "x": 6,
-        "y": 14
+        "x": 0,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 13,
+      "title": "API gateway 5xx ratio",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Share of observed API gateway requests returning 5xx. No series is returned when there is no request traffic.",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_server_requests_seconds_count{job=\"app-actuator\",service=\"api-gateway\",uri!~\"/actuator(/.*)?\",status=~\"5..\"}[$__rate_interval])) or (0 * sum(rate(http_server_requests_seconds_count{job=\"app-actuator\",service=\"api-gateway\",uri!~\"/actuator(/.*)?\"}[$__rate_interval])))) / (sum(rate(http_server_requests_seconds_count{job=\"app-actuator\",service=\"api-gateway\",uri!~\"/actuator(/.*)?\"}[$__rate_interval])) > 0)",
+          "legendFormat": "5xx ratio",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 14,
+      "title": "API gateway mean latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Mean observed API gateway request duration (timer seconds sum divided by request count); no series when there is no traffic.",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_sum{job=\"app-actuator\",service=\"api-gateway\",uri!~\"/actuator(/.*)?\"}[$__rate_interval])) / (sum(rate(http_server_requests_seconds_count{job=\"app-actuator\",service=\"api-gateway\",uri!~\"/actuator(/.*)?\"}[$__rate_interval])) > 0)",
+          "legendFormat": "mean",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 20,
+      "title": "Card builder stage events / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Card build-stage timer events per second, grouped by service, stage, and outcome. A stage appears only after it has emitted events.",
+      "targets": [
+        {
+          "expr": "sum by (service,stage,outcome) (rate(card_build_stage_total{job=\"app-actuator\",service=\"card-builder\"}[$__rate_interval]))",
+          "legendFormat": "{{stage}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "eps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 23,
+      "title": "Deck service stage events / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Deck pipeline-stage timer events per second, grouped by service, stage, and outcome. A stage appears only after it has emitted events.",
+      "targets": [
+        {
+          "expr": "sum by (service,stage,outcome) (rate(deck_pipeline_stage_total{job=\"app-actuator\",service=\"deck-service\"}[$__rate_interval]))",
+          "legendFormat": "{{stage}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "eps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 26,
+      "title": "Vocabulary stage events / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Vocabulary pipeline-stage timer events per second, grouped by service, stage, and outcome. A stage appears only after it has emitted events.",
+      "targets": [
+        {
+          "expr": "sum by (service,stage,outcome) (rate(vocab_pipeline_stage_total{job=\"app-actuator\",service=\"vocab-extractor\"}[$__rate_interval]))",
+          "legendFormat": "{{stage}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "eps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 21,
+      "title": "Card builder mean stage duration",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Mean card build-stage timer duration by service, stage, and outcome; series appear only after events.",
+      "targets": [
+        {
+          "expr": "sum by (service,stage,outcome) (rate(card_build_stage_seconds_sum{job=\"app-actuator\",service=\"card-builder\"}[$__rate_interval])) / (sum by (service,stage,outcome) (rate(card_build_stage_seconds_count{job=\"app-actuator\",service=\"card-builder\"}[$__rate_interval])) > 0)",
+          "legendFormat": "{{stage}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 24,
+      "title": "Deck service mean stage duration",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Mean deck pipeline-stage timer duration by service, stage, and outcome; series appear only after events.",
+      "targets": [
+        {
+          "expr": "sum by (service,stage,outcome) (rate(deck_pipeline_stage_seconds_sum{job=\"app-actuator\",service=\"deck-service\"}[$__rate_interval])) / (sum by (service,stage,outcome) (rate(deck_pipeline_stage_seconds_count{job=\"app-actuator\",service=\"deck-service\"}[$__rate_interval])) > 0)",
+          "legendFormat": "{{stage}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 20,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 27,
+      "title": "Vocabulary mean stage duration",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Mean vocabulary pipeline-stage timer duration by service, stage, and outcome; series appear only after events.",
+      "targets": [
+        {
+          "expr": "sum by (service,stage,outcome) (rate(vocab_pipeline_stage_seconds_sum{job=\"app-actuator\",service=\"vocab-extractor\"}[$__rate_interval])) / (sum by (service,stage,outcome) (rate(vocab_pipeline_stage_seconds_count{job=\"app-actuator\",service=\"vocab-extractor\"}[$__rate_interval])) > 0)",
+          "legendFormat": "{{stage}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 20,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 28,
+      "title": "JVM heap used",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "JVM heap memory currently used, by service instance.",
+      "targets": [
+        {
+          "expr": "sum by (service,instance) (jvm_memory_used_bytes{job=\"app-actuator\",area=\"heap\"})",
+          "legendFormat": "{{service}} · {{instance}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 29,
+      "title": "JVM GC pause time",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "JVM garbage-collection pause seconds per second, displayed as a percentage by service instance.",
+      "targets": [
+        {
+          "expr": "sum by (service,instance) (rate(jvm_gc_pause_seconds_sum{job=\"app-actuator\"}[$__rate_interval]))",
+          "legendFormat": "{{service}} · {{instance}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 30,
+      "title": "Process CPU usage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Micrometer process CPU usage gauge (0–1 fraction), displayed as a percentage.",
+      "targets": [
+        {
+          "expr": "process_cpu_usage{job=\"app-actuator\"}",
+          "legendFormat": "{{service}} · {{instance}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 31,
+      "title": "Scrape diagnostics",
+      "type": "row",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 2,
+          "title": "Application scrape duration",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Prometheus-reported scrape duration for configured Actuator targets.",
+          "targets": [
+            {
+              "expr": "scrape_duration_seconds{job=\"app-actuator\"}",
+              "legendFormat": "{{service}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 37,
+            "w": 12,
+            "h": 8
+          }
+        },
+        {
+          "id": 3,
+          "title": "Application samples scraped",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Number of samples ingested per successful application scrape.",
+          "targets": [
+            {
+              "expr": "scrape_samples_scraped{job=\"app-actuator\"}",
+              "legendFormat": "{{service}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 37,
+            "w": 12,
+            "h": 8
+          }
+        },
+        {
+          "id": 10,
+          "title": "Optional exporters — configuration and reachability",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "NOT CONFIGURED means no active target series; DOWN means configured but scrape failed; UP means scrape succeeded. A newly added target may take one scrape to appear.",
+          "targets": [
+            {
+              "expr": "label_replace((2 + min(up{job=\"node-exporter\"})) or vector(0), \"job\", \"node-exporter\", \"\", \"\") or label_replace((2 + min(up{job=\"cadvisor\"})) or vector(0), \"job\", \"cadvisor\", \"\", \"\") or label_replace((2 + min(up{job=\"nginx\"})) or vector(0), \"job\", \"nginx\", \"\", \"\") or label_replace((2 + min(up{job=\"nginx-access-log\"})) or vector(0), \"job\", \"nginx-access-log\", \"\", \"\")",
+              "legendFormat": "{{job}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 2
+                  },
+                  {
+                    "color": "green",
+                    "value": 3
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "NOT CONFIGURED"
+                    },
+                    "2": {
+                      "text": "DOWN"
+                    },
+                    "3": {
+                      "text": "UP"
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name",
+            "orientation": "horizontal",
+            "wideLayout": true
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 45,
+            "w": 18,
+            "h": 6
+          }
+        },
+        {
+          "id": 11,
+          "title": "Prometheus self health",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Prometheus scrape status for its own endpoint.",
+          "targets": [
+            {
+              "expr": "up{job=\"prometheus\"}",
+              "legendFormat": "Prometheus",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "DOWN"
+                    },
+                    "1": {
+                      "text": "UP"
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "value_and_name",
+            "orientation": "horizontal",
+            "wideLayout": true
+          },
+          "gridPos": {
+            "x": 18,
+            "y": 45,
+            "w": 6,
+            "h": 6
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 1
       }
     },
     {
@@ -281,7 +791,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "Optional: configure a reachable node-exporter target; this chart is hidden in a collapsed row by default.",
+          "description": "Optional node-exporter CPU metric.",
           "targets": [
             {
               "expr": "100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
@@ -295,11 +805,20 @@
             },
             "overrides": []
           },
+          "options": {
+            "legend": {
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
           "gridPos": {
-            "h": 8,
-            "w": 12,
             "x": 0,
-            "y": 21
+            "y": 54,
+            "w": 12,
+            "h": 8
           }
         },
         {
@@ -310,7 +829,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "Optional node-exporter metric.",
+          "description": "Optional exporter metric; requires the corresponding target to be configured and reachable.",
           "targets": [
             {
               "expr": "node_memory_MemAvailable_bytes",
@@ -324,11 +843,20 @@
             },
             "overrides": []
           },
+          "options": {
+            "legend": {
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
           "gridPos": {
-            "h": 8,
-            "w": 12,
             "x": 12,
-            "y": 21
+            "y": 54,
+            "w": 12,
+            "h": 8
           }
         },
         {
@@ -339,7 +867,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "Optional cAdvisor metric.",
+          "description": "Optional exporter metric; requires the corresponding target to be configured and reachable.",
           "targets": [
             {
               "expr": "rate(container_cpu_usage_seconds_total[5m])",
@@ -353,11 +881,20 @@
             },
             "overrides": []
           },
+          "options": {
+            "legend": {
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
           "gridPos": {
-            "h": 8,
-            "w": 12,
             "x": 0,
-            "y": 29
+            "y": 62,
+            "w": 12,
+            "h": 8
           }
         },
         {
@@ -368,7 +905,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "Optional nginx-log-exporter metric.",
+          "description": "Optional exporter metric; requires the corresponding target to be configured and reachable.",
           "targets": [
             {
               "expr": "sum by(status) (rate(nginx_http_response_count_total[5m]))",
@@ -376,11 +913,26 @@
               "refId": "A"
             }
           ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "rps"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
           "gridPos": {
-            "h": 8,
-            "w": 12,
             "x": 12,
-            "y": 29
+            "y": 62,
+            "w": 12,
+            "h": 8
           }
         },
         {
@@ -391,7 +943,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "Optional nginx-log-exporter metric.",
+          "description": "Optional exporter metric; requires the corresponding target to be configured and reachable.",
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by(le) (rate(nginx_http_response_time_seconds_bucket[5m])))",
@@ -405,19 +957,28 @@
             },
             "overrides": []
           },
+          "options": {
+            "legend": {
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
           "gridPos": {
-            "h": 8,
-            "w": 24,
             "x": 0,
-            "y": 37
+            "y": 70,
+            "w": 24,
+            "h": 8
           }
         }
       ],
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 20
+        "y": 53,
+        "w": 24,
+        "h": 1
       }
     }
   ]
