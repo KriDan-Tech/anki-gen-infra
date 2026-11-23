@@ -463,6 +463,30 @@ services:
       - ./acme/run.sh:/acme/run.sh:ro
       - ./acme-data:/data
       - ./certs:/certs
+  cadvisor:
+    image: ghcr.io/google/cadvisor:latest
+    restart: unless-stopped
+    ports:
+      - "9090:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    restart: unless-stopped
+    network_mode: host
+    ports:
+      - "9091:9091"
+    command:
+      - "--path.rootfs=/host"
+      - "--web.listen-address=0.0.0.0:9091"
+    volumes:
+      - /:/host:ro,rslave
+
 
 volumes:
   rabbitmq-data:
