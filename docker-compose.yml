@@ -30,8 +30,9 @@ services:
       BUILDER_DB_PASSWORD: ${BUILDER_DB_PASSWORD}
       DECK_DB_USER: ${DECK_DB_USER}
       DECK_DB_PASSWORD: ${DECK_DB_PASSWORD}
-      BILLING_SANDBOX_DB_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
-      BILLING_SANDBOX_DB_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
+      BILLING_DB_NAME: ${BILLING_DB_NAME:?Set billing DB name}
+      BILLING_DB_USER: ${BILLING_DB_USER:?Set billing DB username}
+      BILLING_DB_PASSWORD: ${BILLING_DB_PASSWORD:?Set billing DB password}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
@@ -359,9 +360,9 @@ services:
     restart: unless-stopped
     environment:
       BILLING_DB_HOST: postgres
-      BILLING_DB_NAME: billing_sandbox_db
-      BILLING_DB_USER: ${BILLING_SANDBOX_DB_USER:?Set sandbox DB username}
-      BILLING_DB_PASSWORD: ${BILLING_SANDBOX_DB_PASSWORD:?Set sandbox DB password}
+      BILLING_DB_NAME: ${BILLING_DB_NAME:?Set billing DB name}
+      BILLING_DB_USER: ${BILLING_DB_USER:?Set billing DB username}
+      BILLING_DB_PASSWORD: ${BILLING_DB_PASSWORD:?Set billing DB password}
       YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
       YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY:-}
       YOOKASSA_EXPECTED_ACCOUNT_ID: ${YOOKASSA_EXPECTED_ACCOUNT_ID:-}

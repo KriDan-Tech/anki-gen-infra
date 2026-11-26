@@ -13,7 +13,7 @@ Billing использует собственную sandbox-базу и роль
 | `extractor_sandbox_db` | `EXTRACTOR_DB_USER` | `EXTRACTOR_DB_USER` / `EXTRACTOR_DB_PASSWORD` | vocab-extractor |
 | `builder_sandbox_db` | `BUILDER_DB_USER` | `BUILDER_DB_USER` / `BUILDER_DB_PASSWORD` | card-builder |
 | `deck_sandbox_db` | `DECK_DB_USER` | `DECK_DB_USER` / `DECK_DB_PASSWORD` | deck-service |
-| `billing_sandbox_db` | `BILLING_SANDBOX_DB_USER` | `BILLING_SANDBOX_DB_USER` / `BILLING_SANDBOX_DB_PASSWORD` | billing-service (YooKassa sandbox) |
+| `BILLING_DB_NAME` | `BILLING_DB_USER` | `BILLING_DB_USER` / `BILLING_DB_PASSWORD` | billing-service |
 | `notification_sandbox_db` | `NOTIFICATION_DB_USER` | `NOTIFICATION_DB_USER` / `NOTIFICATION_DB_PASSWORD` | notification |
 
 Базы `source_sandbox_db` и `keycloak_db` создаются заранее, хотя сами сервисы появляются на более поздних этапах —
@@ -31,12 +31,9 @@ Init-скрипты выполняются только при первой ин
 подготовки базы и не меняет рабочие данные автоматически. Скрипт создаёт только базы и роли,
 таблиц не трогает.
 
-## Billing sandbox
+## Billing
 
-Billing подключается к `billing_sandbox_db` в общем `postgres:17` через роль
-`BILLING_SANDBOX_DB_USER`; пароль задаёт `BILLING_SANDBOX_DB_PASSWORD`. Инфраструктурный
-Compose использует общий опубликованный порт PostgreSQL 5432; отдельного контейнера и volume
-для Billing нет.
+Общий Compose передаёт `BILLING_DB_NAME`, `BILLING_DB_USER` и `BILLING_DB_PASSWORD` инициализации PostgreSQL и сервису Billing. В prod укажите `billing_live_db` и выделенную роль, в отдельной тестовой среде — `billing_sandbox_db` и реквизиты тестовой роли. Init-скрипт создаёт только выбранную БД. На существующем кластере подготовьте отсутствующую базу и роль до запуска Billing; старые базы не удаляются и не переключаются автоматически.
 
 Для новой пустой Billing-базы данных перенос не нужен. Если требуется сохранить данные из
 ранее использовавшейся отдельной базы Billing, это самостоятельный логический перенос:
