@@ -137,13 +137,15 @@ volume и не используйте docker compose down -v. Подготовк
 ## Базы данных
 См. `postgres/README.md`.
 
-## Billing (YooKassa sandbox)
+## Billing (YooKassa)
 
-В инфраструктурном Compose `billing-service` подключается к отдельной базе `billing_sandbox_db` и роли `BILLING_SANDBOX_DB_USER` в общем контейнере `postgres:17`. Для неё используется опубликованный общий порт PostgreSQL 5432; отдельного контейнера, изолированного порта и отдельного volume Billing нет. Переменные перечислены в `.env.example`; `YOOKASSA_RETURN_URL` формируется как `https://${PUBLIC_HOST}/billing`. При запуске с пустым `postgres-data` init-скрипт автоматически создаёт все базы и роли, включая Billing; затем сервисы применяют свои миграции. Ручное создание Billing-БД при чистом запуске не требуется. Подробности — в `postgres/README.md`.
+В инфраструктурном Compose `billing-service` подключается к отдельной базе (имя задаёт `BILLING_DB_NAME`, по умолчанию `billing_sandbox_db`) и роли `BILLING_SANDBOX_DB_USER` в общем контейнере `postgres:17`. Для неё используется опубликованный общий порт PostgreSQL 5432; отдельного контейнера, изолированного порта и отдельного volume Billing нет. Переменные перечислены в `.env.example`; `YOOKASSA_RETURN_URL` формируется как `https://${PUBLIC_HOST}/billing`. При запуске с пустым `postgres-data` init-скрипт автоматически создаёт все базы и роли, включая Billing; затем сервисы применяют свои миграции. Ручное создание Billing-БД при чистом запуске не требуется. На существующем `postgres-data` смена `BILLING_DB_NAME` не создаёт и не переименовывает базу и не сбрасывает данные. Подробности — в `postgres/README.md`.
+
+Для каждого экземпляра задайте credentials своего магазина ЮKassa. Если имя Billing-БД отличается от `billing_sandbox_db`, переопределите `backup_databases` в Ansible inventory: в полном списке укажите настроенное имя Billing-БД и сохраните остальные базы из defaults роли `postgres_backup_cron`.
 
 Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публичный HTTPS с доверенным сертификатом. События: `payment.succeeded`, `payment.canceled`, `payment.waiting_for_capture`.
 
-Текущие начальные миграции рассчитаны на новую sandbox-БД и RabbitMQ vhost. Для существующих БД требуется отдельная миграция; удаление рабочих volumes не является путём обновления.
+Текущие начальные миграции рассчитаны на новую базу и RabbitMQ vhost. Для существующих БД требуется отдельная миграция; удаление рабочих volumes не является путём обновления.
 
 ## Existing-realm SMTP update
 
