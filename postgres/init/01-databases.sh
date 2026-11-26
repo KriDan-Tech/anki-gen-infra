@@ -43,7 +43,7 @@ create_service_db "source_sandbox_db"    "${SOURCE_DB_USER}"    "${SOURCE_DB_PAS
 create_service_db "extractor_sandbox_db" "${EXTRACTOR_DB_USER}" "${EXTRACTOR_DB_PASSWORD}"
 create_service_db "builder_sandbox_db"   "${BUILDER_DB_USER}"   "${BUILDER_DB_PASSWORD}"
 create_service_db "deck_sandbox_db"      "${DECK_DB_USER}"      "${DECK_DB_PASSWORD}"
-create_service_db "${BILLING_DB_NAME}" "${BILLING_DB_USER}" "${BILLING_DB_PASSWORD}"
+create_service_db "billing_sandbox_db"  "${BILLING_SANDBOX_DB_USER}" "${BILLING_SANDBOX_DB_PASSWORD}"
 
 create_service_db "notification_sandbox_db" "${NOTIFICATION_DB_USER}" "${NOTIFICATION_DB_PASSWORD}"
 

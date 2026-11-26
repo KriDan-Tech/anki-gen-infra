@@ -137,17 +137,13 @@ volume и не используйте docker compose down -v. Подготовк
 ## Базы данных
 См. `postgres/README.md`.
 
-## Billing (ЮKassa)
+## Billing (YooKassa sandbox)
 
-Один и тот же `docker-compose.yml` используется на обеих ВМ. На prod задайте `BILLING_DB_NAME=billing_live_db`, выделенные `BILLING_DB_USER` / `BILLING_DB_PASSWORD` и боевые `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `YOOKASSA_EXPECTED_ACCOUNT_ID`. На тестовой ВМ используйте `billing_sandbox_db`, отдельную роль и реквизиты демомагазина. По полному набору реквизитов Billing выбирает sandbox для ключа с префиксом `test_`, иначе live. При неполных реквизитах или пробельных символах в ключе провайдер отключён, действуют ограничения sandbox. Возвраты через админку остаются доступны только в sandbox.
-
-До первого обращения к ЮKassa подтвердите принадлежность реквизитов нужному магазину в кабинете ЮKassa: префикс ключа не является подтверждением режима провайдером. При сверке платежа Billing требует явный булевый `test` из авторитетного ответа ЮKassa, совпадающий с режимом заказа и базы.
-
-Для пустого PostgreSQL база и роль создаются при инициализации. Для существующего кластера сначала подготовьте целевую базу и роль (см. [postgres/README.md](postgres/README.md)). При обновлении старого sandbox-конфига перенесите значения из `BILLING_SANDBOX_DB_USER/PASSWORD` в `BILLING_DB_USER/PASSWORD` и задайте имя БД. Не переносите тестовые балансы в prod.
+В инфраструктурном Compose `billing-service` подключается к отдельной базе `billing_sandbox_db` и роли `BILLING_SANDBOX_DB_USER` в общем контейнере `postgres:17`. Для неё используется опубликованный общий порт PostgreSQL 5432; отдельного контейнера, изолированного порта и отдельного volume Billing нет. Переменные перечислены в `.env.example`; `YOOKASSA_RETURN_URL` формируется как `https://${PUBLIC_HOST}/billing`. При запуске с пустым `postgres-data` init-скрипт автоматически создаёт все базы и роли, включая Billing; затем сервисы применяют свои миграции. Ручное создание Billing-БД при чистом запуске не требуется. Подробности — в `postgres/README.md`.
 
 Webhook: `POST /api/billing/webhooks/yookassa`. Требуется публичный HTTPS с доверенным сертификатом. События: `payment.succeeded`, `payment.canceled`, `payment.waiting_for_capture`.
 
-Не удаляйте рабочие volumes для применения настроек или миграций.
+Текущие начальные миграции рассчитаны на новую sandbox-БД и RabbitMQ vhost. Для существующих БД требуется отдельная миграция; удаление рабочих volumes не является путём обновления.
 
 ## Existing-realm SMTP update
 
